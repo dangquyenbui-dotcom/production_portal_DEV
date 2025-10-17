@@ -12,7 +12,8 @@ from .reports import reports_bp
 from .bom import bom_bp
 from .po import po_bp
 from .mrp import mrp_bp
-from .sales import sales_bp # <-- ADD THIS IMPORT
+from .sales import sales_bp
+from .jobs import jobs_bp # <-- ADD THIS IMPORT
 from . import admin
 
 __all__ = [
@@ -25,5 +26,6 @@ __all__ = [
     'bom_bp',
     'po_bp',
     'mrp_bp',
-    'sales_bp' # <-- ADD THIS
+    'sales_bp',
+    'jobs_bp' # <-- ADD THIS
 ]

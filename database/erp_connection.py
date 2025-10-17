@@ -107,6 +107,63 @@ class ErpService:
         """
         return db.execute_query(sql)
 
+    def get_open_job_details(self, job_numbers):
+        """
+        Retrieves details for a list of open jobs from the dtfifo table.
+        """
+        if not job_numbers:
+            return []
+            
+        db = get_erp_db()
+        
+        placeholders = ', '.join(['?'] * len(job_numbers))
+        
+        sql = f"""
+            SELECT 
+                f.fi_postref, 
+                f.fi_action, 
+                f.fi_quant, 
+                f.fi_prid,
+                p.pr_codenum AS part_number,
+                p.pr_descrip AS part_description
+            FROM dtfifo f
+            LEFT JOIN dmprod p ON f.fi_prid = p.pr_id
+            WHERE f.fi_postref IN ({placeholders})
+        """
+        
+        params = [f'JJ-{job_number}' for job_number in job_numbers]
+        
+        return db.execute_query(sql, params)
+
+    def get_relieve_job_data(self, job_numbers):
+        """
+        Retrieves relieve job data from the dtfifo2 table.
+        """
+        if not job_numbers:
+            return []
+        
+        db = get_erp_db()
+        
+        placeholders = ', '.join(['?'] * len(job_numbers))
+        
+        sql = f"""
+            SELECT 
+                f2.f2_postref,
+                f2.f2_action,
+                f2.f2_prid,
+                (f2.f2_oldquan - f2.f2_newquan) AS net_quantity,
+                p.pr_codenum AS part_number,
+                p.pr_descrip AS part_description
+            FROM dtfifo2 f2
+            LEFT JOIN dmprod p ON f2.f2_prid = p.pr_id
+            WHERE f2.f2_postref IN ({placeholders})
+            AND f2.f2_action = 'Relieve Job'
+        """
+        
+        params = [f'JJ-{job_number}' for job_number in job_numbers]
+        
+        return db.execute_query(sql, params)
+
     # ... (all other existing methods like get_raw_material_inventory, get_bom_data, etc. remain here) ...
     def get_raw_material_inventory(self):
         """
@@ -475,7 +532,6 @@ class ErpService:
         return result[0]['total_shipped_value'] if result and result[0]['total_shipped_value'] is not None else 0
 
     def get_open_order_schedule(self):
-        # ... (this very large query is unchanged) ...
         db = get_erp_db()
         sql = """
             WITH LatestOrderStatus AS (
