@@ -7,139 +7,111 @@
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 <style>
-    /* Add styles for the toggle switch */
-    .live-toggle-container {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 20px;
+    /* Max container width */
+    .container { max-width: 98vw; padding: 0 1vw;}
+
+    /* Filter Bar - Adjusted for horizontal layout */
+    .controls-bar {
+        background: var(--bg-secondary); padding: 15px 20px; border-radius: 10px;
+        margin-bottom: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-primary);
+        display: flex; flex-wrap: wrap; align-items: center; gap: 20px;
     }
-    .live-toggle-label {
-        font-weight: 600;
-        color: var(--text-secondary);
+    .filters-container {
+        display: flex; flex-wrap: wrap; gap: 15px;
+        flex-grow: 1; align-items: center;
     }
-    .toggle-switch {
-        position: relative;
-        display: inline-block;
-        width: 60px;
-        height: 34px;
+    .filter-group { display: flex; align-items: center; gap: 8px; }
+    .filter-group label { font-weight: 500; color: var(--text-secondary); white-space: nowrap; flex-shrink: 0; }
+    .filter-select {
+        min-width: 160px; padding: 8px 12px; border: 2px solid var(--input-border);
+        border-radius: 6px; background: var(--input-bg); color: var(--text-primary); font-size: 14px;
+        -webkit-appearance: none; appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23718096' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; padding-right: 40px;
     }
-    .toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
+    [data-theme="dark"] .filter-select {
+         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23cbd5e0' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
     }
-    .slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: var(--border-secondary);
-        transition: .4s;
-        border-radius: 34px;
+    .filter-select:focus {
+        outline: none; border-color: var(--input-focus-border);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
-    .slider:before {
-        position: absolute;
-        content: "";
-        height: 26px;
-        width: 26px;
-        left: 4px;
-        bottom: 4px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
+    [data-theme="dark"] .filter-select:focus {
+         box-shadow: 0 0 0 3px rgba(144, 205, 244, 0.1);
     }
-    input:checked + .slider {
-        background-color: var(--accent-green);
+    .filters-container .btn-secondary { padding: 8px 16px; font-size: 14px; }
+
+    /* Refresh Container Styles (like MRP) */
+    .refresh-container {
+        display: flex; align-items: center; gap: 15px;
+        margin-left: auto; /* Pushes to the right */
     }
-    input:checked + .slider:before {
-        transform: translateX(26px);
-    }
-    /* Style for highlighting changed cells */
-    .cell-changed {
-        animation: highlight-change 1.5s ease-out;
-    }
-    @keyframes highlight-change {
-        0% { background-color: var(--accent-orange); color: white; }
-        100% { background-color: transparent; color: inherit; }
-    }
-    [data-theme="dark"] .cell-changed {
-         animation: highlight-change-dark 1.5s ease-out;
-    }
-     @keyframes highlight-change-dark {
-        0% { background-color: var(--accent-orange); color: black; }
-        100% { background-color: transparent; color: inherit; }
-    }
+    .last-updated { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
+    .refresh-button { font-size: 14px; padding: 8px 16px; }
 
 
-    .job-card {
-        background: var(--bg-secondary);
-        border-radius: 10px;
-        margin-bottom: 15px;
-        box-shadow: var(--shadow-sm);
-        border: 1px solid var(--border-primary);
-        overflow: hidden;
+    /* Live Update Toggle - Reverted to styled switch */
+    .live-toggle-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .live-toggle-label { font-weight: 600; color: var(--text-secondary); }
+    .toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-secondary); transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--accent-green); }
+    input:checked + .slider:before { transform: translateX(26px); }
+
+    /* Highlight Changed Cells */
+    .cell-changed { animation: highlight-change 1.5s ease-out; }
+    @keyframes highlight-change { 0% { background-color: var(--accent-orange); color: white; } 100% { background-color: transparent; color: inherit; } }
+    [data-theme="dark"] .cell-changed { animation: highlight-change-dark 1.5s ease-out; }
+    @keyframes highlight-change-dark { 0% { background-color: var(--accent-orange); color: black; } 100% { background-color: transparent; color: inherit; } }
+
+    /* Static Header Styles */
+    .job-header-static {
+        display: grid; grid-template-columns: 1fr 1fr 1.5fr 0.8fr 0.8fr 1fr 0.3fr; gap: 15px;
+        padding: 10px 20px; background: var(--table-header-bg); border: 1px solid var(--border-primary);
+        border-radius: 10px 10px 0 0; border-bottom: 2px solid var(--border-primary); margin-bottom: 0;
     }
+    .job-header-static .header-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .job-header-static .sortable { cursor: pointer; user-select: none; }
+    .job-header-static .sortable:hover { color: var(--text-primary); }
+    .sort-indicator { display: inline-block; margin-left: 5px; color: var(--text-tertiary); opacity: 0.5; transition: opacity 0.2s; width: 1em; }
+    .sortable.sorted-asc .sort-indicator, .sortable.sorted-desc .sort-indicator { opacity: 1; color: var(--accent-blue); }
+    .numeric { text-align: right; }
+
+    /* Accordion Container */
+    .jobs-accordion { border: 1px solid var(--border-primary); border-top: none; box-shadow: var(--shadow-sm); border-radius: 0 0 10px 10px; overflow: hidden; }
+
+    /* Job Card becomes just a container now */
+    .job-card { overflow: hidden; }
+    .job-card.hidden-row { display: none; }
+
+    /* Job Header (as Row) */
     .job-header {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr 0.5fr;
-        gap: 20px;
-        align-items: center;
-        padding: 20px;
-        cursor: pointer;
-        border-left: 5px solid var(--accent-blue);
-        transition: background-color 0.2s;
+        display: grid; grid-template-columns: 1fr 1fr 1.5fr 0.8fr 0.8fr 1fr 0.3fr; gap: 15px;
+        align-items: center; padding: 12px 20px; cursor: pointer; border-left: 5px solid transparent;
+        transition: background-color 0.2s; background: var(--bg-secondary); border-bottom: 1px solid var(--border-primary);
     }
-    .job-header:hover {
-        background-color: var(--bg-hover);
-    }
-    .job-info strong {
-        font-size: 1.2em;
-        color: var(--text-primary);
-    }
-    .job-info small {
-        color: var(--text-tertiary);
-        display: block;
-        font-size: 0.9em;
-        margin-top: 4px;
-    }
-    .expand-icon {
-        font-size: 24px;
-        color: var(--text-tertiary);
-        transition: transform 0.3s ease;
-        text-align: right;
-    }
-    .job-header.expanded .expand-icon {
-        transform: rotate(90deg);
-    }
-    .transaction-details {
-        display: none;
-        padding: 20px;
-        background-color: var(--bg-tertiary);
-        border-top: 1px solid var(--border-primary);
-    }
-    .transaction-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .transaction-table th, .transaction-table td {
-        padding: 12px 20px;
-        font-size: 13px;
-        text-align: left;
-        border-bottom: 1px solid var(--border-primary);
-    }
-    .transaction-table thead {
-        background-color: var(--bg-hover);
-    }
-    .transaction-table th {
-        font-weight: 600;
-        color: var(--text-secondary);
-    }
-    .numeric {
-        text-align: right;
-    }
+    .jobs-accordion .job-card:last-child .job-header { border-bottom: none; }
+    .job-header:hover { background-color: var(--bg-hover); }
+
+    .job-info { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .job-info strong { font-size: 1em; color: var(--text-primary); font-weight: 600; display: block; }
+    .job-header .job-info small { display: none !important; }
+    .job-info.numeric strong { text-align: right; }
+
+    /* Accordion Details */
+    .expand-icon { font-size: 24px; color: var(--text-tertiary); transition: transform 0.3s ease; text-align: right; }
+    .job-header.expanded .expand-icon { transform: rotate(90deg); }
+    .transaction-details { display: none; padding: 20px 30px; background-color: var(--bg-tertiary); border-top: 1px solid var(--border-primary); }
+    .transaction-table { width: 100%; border-collapse: collapse; }
+    .transaction-table th, .transaction-table td { padding: 10px 15px; font-size: 13px; text-align: left; border-bottom: 1px solid var(--border-primary); }
+    .transaction-table tr:last-child td { border-bottom: none; }
+    .transaction-table thead { background-color: var(--bg-hover); }
+    .transaction-table th { font-weight: 600; color: var(--text-secondary); white-space: nowrap;}
+
+    /* Footer */
+    .grid-footer { padding: 10px 20px; text-align: right; font-size: 14px; color: var(--text-tertiary); font-weight: 500; background: var(--bg-secondary); border-radius: 0 0 10px 10px; border: 1px solid var(--border-primary); border-top: none; margin-top: -1px; }
 </style>
 {% endblock %}
 
@@ -147,6 +119,22 @@
 <div class="header-card">
     <h1>Live Open Jobs</h1>
     <p>Real-time view of open production jobs.</p>
+</div>
+
+<div class="controls-bar">
+    <div class="filters-container">
+        <div class="filter-group"><label for="customerFilter">Customer:</label><select id="customerFilter" class="form-select filter-select"><option value="">All</option></select></div>
+        <div class="filter-group"><label for="jobFilter">Job:</label><select id="jobFilter" class="form-select filter-select"><option value="">All</option></select></div>
+        <div class="filter-group"><label for="partFilter">Part:</label><select id="partFilter" class="form-select filter-select"><option value="">All</option></select></div>
+        <div class="filter-group"><label for="soFilter">Sales Order:</label><select id="soFilter" class="form-select filter-select"><option value="">All</option></select></div>
+        <button class="btn btn-secondary" id="resetBtn">Reset Filters</button>
+    </div>
+    <div class="refresh-container">
+        <span class="last-updated" id="lastUpdated"></span>
+        <button class="btn btn-primary refresh-button" id="refreshBtn">
+            🔄 Refresh Data
+        </button>
+    </div>
 </div>
 
 <div class="live-toggle-container">
@@ -160,273 +148,55 @@
 
 <div id="alerts"></div>
 
+<div class="job-header-static">
+    <div class="header-label sortable" data-column-id="job" data-type="string">Job Number<span class="sort-indicator"></span></div>
+    <div class="header-label sortable" data-column-id="part" data-type="string">Part Number<span class="sort-indicator"></span></div>
+    <div class="header-label sortable" data-column-id="customer" data-type="string">Customer<span class="sort-indicator"></span></div>
+    <div class="header-label sortable" data-column-id="so" data-type="string">Sales Order<span class="sort-indicator"></span></div>
+    <div class="header-label numeric sortable" data-column-id="required" data-type="numeric">Required Qty<span class="sort-indicator"></span></div>
+    <div class="header-label numeric sortable" data-column-id="completed" data-type="numeric">Completed Qty<span class="sort-indicator"></span></div>
+    <div class="expand-icon" style="visibility: hidden;">›</div>
+</div>
+
 <div class="jobs-accordion">
     {% if jobs %}
         {% for job in jobs %}
-        <div class="job-card" data-job-id="{{ job.job_number }}">
+        <div class="job-card"
+             data-job-id="{{ job.job_number }}" data-customer="{{ job.customer_name }}"
+             data-job="{{ job.job_number }}" data-part="{{ job.part_number }}"
+             data-so="{{ job.sales_order }}">
             <div class="job-header">
-                <div class="job-info">
-                    <strong>{{ job.job_number }}</strong>
-                    <small>Job Number</small>
-                </div>
-                <div class="job-info">
-                    <strong>{{ job.part_number }}</strong>
-                    <small>Part Number</small>
-                </div>
-                <div class="job-info numeric" data-field="completed_qty" title="{{ job.tooltip }}">
-                    <strong>{{ "{:,.2f}".format(job.completed_qty|float) }}</strong>
-                    <small>Completed Quantity</small>
-                </div>
+                <div class="job-info" data-column-id="job"><strong data-field="job_number">{{ job.job_number }}</strong></div>
+                <div class="job-info" data-column-id="part"><strong data-field="part_number">{{ job.part_number }}</strong></div>
+                <div class="job-info" data-column-id="customer"><strong data-field="customer_name">{{ job.customer_name }}</strong></div>
+                <div class="job-info" data-column-id="so"><strong data-field="sales_order">{{ job.sales_order }}</strong></div>
+                <div class="job-info numeric" data-column-id="required"><strong data-field="required_qty">{{ "{:,.2f}".format(job.required_qty|float) }}</strong></div>
+                <div class="job-info numeric" data-column-id="completed" data-field="completed_qty" title="{{ job.tooltip }}"><strong>{{ "{:,.2f}".format(job.completed_qty|float) }}</strong></div>
                 <div class="expand-icon">›</div>
             </div>
             <div class="transaction-details">
-                <table class="transaction-table">
-                    <thead>
-                        <tr>
-                            <th>Part</th>
-                            <th>Part Description</th>
-                            <th class="numeric">Issued Inventory</th>
-                            <th class="numeric">De-issue</th>
-                            <th class="numeric">Relieve Job</th>
-                            <th class="numeric">Yield Cost/Scrap</th>
-                            <th class="numeric">Yield Loss</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for part_summary in job.aggregated_list %}
-                        <tr data-part-number="{{ part_summary.part_number }}">
-                            <td>{{ part_summary.part_number }}</td>
-                            <td>{{ part_summary.part_description }}</td>
-                            <td class="numeric" data-field="Issued inventory">{{ "{:,.2f}".format(part_summary['Issued inventory']|float) }}</td>
-                            <td class="numeric" data-field="De-issue">{{ "{:,.2f}".format(part_summary['De-issue']|float) }}</td>
-                            <td class="numeric" data-field="Relieve Job">{{ "{:,.2f}".format(part_summary['Relieve Job']|float) }}</td>
-                            <td class="numeric" data-field="Yield Cost/Scrap">{{ "{:,.2f}".format(part_summary['Yield Cost/Scrap']|float) }}</td>
-                            <td class="numeric" data-field="Yield Loss">{{ "%.2f"|format(part_summary['Yield Loss']|float) }}%</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                 <table class="transaction-table">
+                     <thead><tr><th>Part</th><th>Part Description</th><th class="numeric">Issued Inventory</th><th class="numeric">De-issue</th><th class="numeric">Relieve Job</th><th class="numeric">Yield Cost/Scrap</th><th class="numeric">Yield Loss</th></tr></thead>
+                     <tbody>
+                         {% for part_summary in job.aggregated_list %} <tr data-part-number="{{ part_summary.part_number }}"><td>{{ part_summary.part_number }}</td><td>{{ part_summary.part_description }}</td><td class="numeric" data-field="Issued inventory">{{ "{:,.2f}".format(part_summary['Issued inventory']|float) }}</td><td class="numeric" data-field="De-issue">{{ "{:,.2f}".format(part_summary['De-issue']|float) }}</td><td class="numeric" data-field="Relieve Job">{{ "{:,.2f}".format(part_summary['Relieve Job']|float) }}</td><td class="numeric" data-field="Yield Cost/Scrap">{{ "{:,.2f}".format(part_summary['Yield Cost/Scrap']|float) }}</td><td class="numeric" data-field="Yield Loss">{{ "%.2f"|format(part_summary['Yield Loss']|float) }}%</td></tr> {% endfor %}
+                         {% if not job.aggregated_list %} <tr><td colspan="7" style="text-align: center; color: var(--text-tertiary);">No component transactions found.</td></tr> {% endif %}
+                     </tbody>
+                 </table>
             </div>
         </div>
         {% endfor %}
     {% else %}
-    <div class="empty-state">
-        <div class="empty-state-icon">📦</div>
-        <h3>No Open Job data found</h3>
-        <p>Could not retrieve open job information from the ERP.</p>
-    </div>
+        <div class="empty-state" style="padding: 40px; background: var(--bg-secondary); border-radius: 0 0 10px 10px; border: 1px solid var(--border-primary); border-top: none;">
+            <div class="empty-state-icon">📦</div><h3>No Open Job data found</h3><p>Could not retrieve open job information from the ERP.</p>
+        </div>
     {% endif %}
+</div>
+
+<div class="grid-footer" id="gridFooter">
+    <span id="rowCount">Showing 0 of 0 jobs</span>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-    let refreshIntervalId = null;
-    const REFRESH_INTERVAL_MS = 30000; // Refresh every 30 seconds
-    const LIVE_UPDATE_KEY = 'jobsLiveUpdateEnabled';
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // Accordion listener
-        const accordion = document.querySelector('.jobs-accordion');
-        if (accordion) {
-            accordion.addEventListener('click', function(event) {
-                const header = event.target.closest('.job-header');
-                if (header) {
-                    toggleAccordion(header);
-                }
-            });
-        }
-
-        // Live update toggle listener
-        const toggle = document.getElementById('liveUpdateToggle');
-        const updateStatus = document.getElementById('updateStatus');
-
-        // Restore toggle state from localStorage
-        const isLiveEnabled = localStorage.getItem(LIVE_UPDATE_KEY) === 'true';
-        toggle.checked = isLiveEnabled;
-        updateStatus.textContent = isLiveEnabled ? 'ON' : 'OFF';
-
-        if (isLiveEnabled) {
-            startLiveUpdate();
-        }
-
-        toggle.addEventListener('change', function() {
-            if (this.checked) {
-                localStorage.setItem(LIVE_UPDATE_KEY, 'true');
-                updateStatus.textContent = 'ON - Updating...';
-                startLiveUpdate();
-                fetchAndUpdateData(); // Fetch immediately when turned on
-            } else {
-                localStorage.setItem(LIVE_UPDATE_KEY, 'false');
-                updateStatus.textContent = 'OFF';
-                stopLiveUpdate();
-            }
-        });
-    });
-
-    function toggleAccordion(header) {
-        header.classList.toggle('expanded');
-        const details = header.nextElementSibling;
-        if (details && details.classList.contains('transaction-details')) {
-            if (details.style.display === 'block') {
-                slideUp(details);
-            } else {
-                slideDown(details);
-            }
-        }
-    }
-
-    function startLiveUpdate() {
-        if (refreshIntervalId === null) {
-            console.log(`Starting live update interval (${REFRESH_INTERVAL_MS / 1000}s)`);
-            refreshIntervalId = setInterval(fetchAndUpdateData, REFRESH_INTERVAL_MS);
-            document.getElementById('updateStatus').textContent = 'ON';
-        }
-    }
-
-    function stopLiveUpdate() {
-        if (refreshIntervalId !== null) {
-            console.log("Stopping live update interval");
-            clearInterval(refreshIntervalId);
-            refreshIntervalId = null;
-            document.getElementById('updateStatus').textContent = 'OFF';
-        }
-    }
-
-    function fetchAndUpdateData() {
-        console.log("Fetching live job data...");
-        const updateStatus = document.getElementById('updateStatus');
-        if (updateStatus) updateStatus.textContent = 'ON - Updating...';
-
-        fetch('/jobs/api/open-jobs-data')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    updateTableData(data.jobs);
-                    if (updateStatus) updateStatus.textContent = 'ON'; // Reset status after successful update
-                } else {
-                    throw new Error(data.message || 'API Error');
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching live data:', error);
-                dtUtils.showAlert(`Failed to fetch live data: ${error.message}`, 'error');
-                if (updateStatus) updateStatus.textContent = 'ON - Error';
-                stopLiveUpdate(); // Stop polling on error
-                document.getElementById('liveUpdateToggle').checked = false; // Turn off toggle
-                localStorage.setItem(LIVE_UPDATE_KEY, 'false');
-            });
-    }
-
-    function updateTableData(newJobsData) {
-        console.log("Updating table data...");
-        const accordion = document.querySelector('.jobs-accordion');
-        const existingJobCards = accordion.querySelectorAll('.job-card');
-        const existingJobIds = new Set(Array.from(existingJobCards).map(card => card.dataset.jobId));
-        const newJobIds = new Set(newJobsData.map(job => job.job_number));
-
-        // TODO: Handle jobs appearing or disappearing if needed in the future
-        // For now, we only update existing jobs
-
-        newJobsData.forEach(newJob => {
-            const jobId = newJob.job_number;
-            const jobCard = accordion.querySelector(`.job-card[data-job-id="${jobId}"]`);
-            if (!jobCard) {
-                console.warn(`Job card for ${jobId} not found, skipping update.`);
-                return; // Skip if job card doesn't exist (e.g., if job list changes)
-            }
-
-            // --- Update Header ---
-            const completedQtyCell = jobCard.querySelector('.job-info[data-field="completed_qty"] strong');
-            const newCompletedQty = parseFloat(newJob.completed_qty || 0);
-            updateCell(completedQtyCell, newCompletedQty, true); // Format as number
-
-             // Update tooltip in the header
-            const headerTooltipTarget = jobCard.querySelector('.job-info[data-field="completed_qty"]');
-            if (headerTooltipTarget) {
-                 headerTooltipTarget.title = newJob.tooltip || '';
-            }
-
-            // --- Update Details Table ---
-            const detailsTableBody = jobCard.querySelector('.transaction-table tbody');
-            if (detailsTableBody) {
-                newJob.aggregated_list.forEach(newPartSummary => {
-                    const partNumber = newPartSummary.part_number;
-                    const partRow = detailsTableBody.querySelector(`tr[data-part-number="${partNumber}"]`);
-                    if (partRow) {
-                        updateCell(partRow.querySelector('[data-field="Issued inventory"]'), parseFloat(newPartSummary['Issued inventory'] || 0), true);
-                        updateCell(partRow.querySelector('[data-field="De-issue"]'), parseFloat(newPartSummary['De-issue'] || 0), true);
-                        updateCell(partRow.querySelector('[data-field="Relieve Job"]'), parseFloat(newPartSummary['Relieve Job'] || 0), true);
-                        updateCell(partRow.querySelector('[data-field="Yield Cost/Scrap"]'), parseFloat(newPartSummary['Yield Cost/Scrap'] || 0), true);
-                        updateCell(partRow.querySelector('[data-field="Yield Loss"]'), parseFloat(newPartSummary['Yield Loss'] || 0), false, '%'); // Format as percentage
-                    } else {
-                        // Optionally add new rows if new parts appear for a job
-                        console.log(`Part row for ${partNumber} not found in job ${jobId}. Add logic to create it if needed.`);
-                    }
-                });
-                // Optionally remove rows if parts disappear (less common)
-            }
-        });
-        console.log("Table update complete.");
-    }
-
-    function updateCell(cellElement, newValue, formatAsNumber = false, suffix = '') {
-        if (!cellElement) return;
-
-        let formattedNewValue;
-        if (formatAsNumber) {
-            formattedNewValue = newValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        } else if (suffix === '%') {
-             formattedNewValue = newValue.toFixed(2) + '%';
-        }
-         else {
-            formattedNewValue = newValue.toString();
-        }
-
-        const currentFormattedValue = cellElement.textContent.trim();
-
-        if (currentFormattedValue !== formattedNewValue) {
-            cellElement.textContent = formattedNewValue;
-            // Briefly highlight the cell
-            cellElement.classList.add('cell-changed');
-            setTimeout(() => {
-                cellElement.classList.remove('cell-changed');
-            }, 1500); // Duration of the highlight animation
-        }
-    }
-
-
-    // Slide functions (from common.js or adapted)
-    function slideDown(element) {
-        element.style.display = 'block';
-        let height = element.scrollHeight + 'px';
-        element.style.height = 0;
-        setTimeout(() => {
-            element.style.transition = 'height 0.3s ease-in-out';
-            element.style.height = height;
-        }, 0);
-        setTimeout(() => {
-            element.style.removeProperty('height');
-            element.style.removeProperty('transition');
-        }, 300);
-    }
-
-    function slideUp(element) {
-        element.style.height = element.scrollHeight + 'px';
-        setTimeout(() => {
-            element.style.transition = 'height 0.3s ease-in-out';
-            element.style.height = 0;
-        }, 0);
-        setTimeout(() => {
-            element.style.display = 'none';
-            element.style.removeProperty('height');
-            element.style.removeProperty('transition');
-        }, 300);
-    }
-</script>
+<script src="{{ url_for('static', filename='js/jobs.js') }}"></script>
 {% endblock %}
