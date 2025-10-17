@@ -407,6 +407,15 @@
     </a>
     {% endif %}
     
+    {# Open Jobs: For Admins and Scheduling users #}
+    {% if user.is_admin or user.is_scheduling_admin or user.is_scheduling_user %}
+    <a href="{{ url_for('jobs.view_open_jobs') }}" class="action-card">
+        <div class="action-icon">💼</div>
+        <div class="action-title">Open Jobs</div>
+        <div class="action-desc">View live open production jobs.</div>
+    </a>
+    {% endif %}
+    
     <a href="/logout" class="action-card logout">
         <div class="action-icon">🚪</div>
         <div class="action-title">Logout</div>

@@ -60,7 +60,8 @@ def register_blueprints(app):
     from routes.bom import bom_bp
     from routes.po import po_bp
     from routes.mrp import mrp_bp
-    from routes.sales import sales_bp # <-- ADD THIS IMPORT
+    from routes.sales import sales_bp
+    from routes.jobs import jobs_bp # <-- ADD THIS IMPORT
     from routes.admin.panel import admin_panel_bp
     from routes.admin.facilities import admin_facilities_bp
     from routes.admin.production_lines import admin_lines_bp
@@ -79,7 +80,8 @@ def register_blueprints(app):
     app.register_blueprint(bom_bp)
     app.register_blueprint(po_bp)
     app.register_blueprint(mrp_bp)
-    app.register_blueprint(sales_bp) # <-- ADD THIS LINE
+    app.register_blueprint(sales_bp)
+    app.register_blueprint(jobs_bp) # <-- ADD THIS LINE
     
     # Register all admin blueprints under the /admin prefix
     app.register_blueprint(admin_panel_bp, url_prefix='/admin')
