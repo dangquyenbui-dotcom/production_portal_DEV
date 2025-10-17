@@ -1,0 +1,516 @@
+{% extends "base.html" %}
+
+{% block title %}Production Scheduling{% endblock %}
+
+{% block navbar_title %}🗓️ Production Scheduling{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    /* Maximize container width for this page only */
+    .container {
+        max-width: 98vw;
+        padding: 0 1vw;
+    }
+
+    .controls-bar {
+        background: var(--bg-secondary);
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 20px;
+    }
+    .filters-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        flex-grow: 1;
+        align-items: center; /* Align items vertically */
+    }
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .filter-group label {
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+    .filter-select {
+        min-width: 180px;
+    }
+    .refresh-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-left: auto;
+    }
+    .last-updated {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        white-space: nowrap;
+    }
+    .refresh-button {
+        font-size: 16px;
+        padding: 10px 20px;
+    }
+    .grid-container {
+        width: 100%;
+        overflow: auto;
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+        max-height: calc(100vh - 420px);
+    }
+    .grid-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .grid-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .grid-table th {
+        background: var(--table-header-bg);
+        font-weight: 600;
+    }
+    .grid-table th, .grid-table td {
+        padding: 6px 10px;
+        border: 1px solid var(--border-primary);
+        text-align: left;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .grid-table .numeric { text-align: right; }
+    .hidden-row { display: none; }
+    .grid-footer {
+        padding: 10px;
+        text-align: right;
+        font-size: 14px;
+        color: var(--text-tertiary);
+        font-weight: 500;
+    }
+    .highlight-green {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .highlight-red {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .highlight-purple { /* NEW */
+        background-color: #e9d8fd;
+        color: #553c9a;
+    }
+    [data-theme="dark"] .highlight-green {
+        background-color: rgba(104, 211, 145, 0.2);
+        color: #c6f6d5;
+    }
+    [data-theme="dark"] .highlight-red {
+        background-color: rgba(252, 129, 129, 0.2);
+        color: #fccfcf;
+    }
+    [data-theme="dark"] .highlight-purple { /* NEW */
+        background-color: rgba(183, 148, 244, 0.2);
+        color: var(--accent-purple);
+    }
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .summary-card {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+    }
+    .summary-value {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    .summary-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+    .summary-card.green .summary-value { color: var(--accent-green); }
+    .summary-card.red .summary-value { color: var(--accent-red); }
+    .summary-card.blue .summary-value { color: var(--accent-blue); }
+    .summary-card.orange .summary-value { color: var(--accent-orange); }
+    .summary-card.purple .summary-value { color: var(--accent-purple); }
+
+    /* --- EDITABLE CELL STYLES --- */
+    .editable {
+        background-color: #fffde7;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    [data-theme="dark"] .editable { 
+        background-color: #42422a; 
+    }
+    .editable:focus {
+        background-color: #ffffff;
+        color: #111111; /* Ensure dark text on focus for light mode */
+        outline: 2px solid var(--accent-blue);
+    }
+    [data-theme="dark"] .editable:focus {
+        background-color: #e0e0e0; /* Light grey background for dark mode focus */
+        color: #111111; /* Ensure dark text on focus for dark mode */
+        outline: 2px solid var(--accent-blue);
+    }
+    .editable.view-only {
+        background-color: transparent;
+        cursor: not-allowed;
+        font-weight: normal;
+    }
+    [data-theme="dark"] .editable.view-only { 
+        background-color: transparent; 
+    }
+
+    .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-left: 5px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .status-indicator.saving { animation: pulse 1s infinite; opacity: 1; }
+    .status-indicator.success { background-color: #4caf50; opacity: 1; }
+    .status-indicator.error { background-color: #f44336; opacity: 1; }
+    @keyframes pulse { 0% { background-color: #ffc107; } 50% { background-color: #ffecb3; } 100% { background-color: #ffc107; } }
+
+    /* --- NEW COLUMN TOGGLE STYLES --- */
+    .column-toggle-container {
+        position: relative;
+    }
+
+    .column-toggle-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0; /* <-- THIS LINE WAS CHANGED FROM right: 0; */
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        box-shadow: var(--shadow-md);
+        z-index: 1001;
+        padding: 10px;
+        width: 220px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .column-toggle-dropdown.show {
+        display: block;
+    }
+
+    .column-toggle-dropdown label {
+        display: block;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 14px;
+        color: var(--text-primary);
+    }
+
+    .column-toggle-dropdown label:hover {
+        background-color: var(--bg-hover);
+    }
+
+    .column-toggle-dropdown input {
+        margin-right: 10px;
+    }
+
+    /* --- NEW 'Fix' Button Styles --- */
+    .suggestion-fix {
+        margin-left: 8px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: bold;
+        border-radius: 4px;
+        border: 1px solid;
+        cursor: pointer;
+        vertical-align: middle;
+        text-transform: uppercase;
+    }
+
+    .suggestion-fix.fix-shortfall { /* Red for shortfall */
+        background-color: var(--alert-error-bg);
+        color: var(--alert-error-text);
+        border-color: var(--alert-error-border);
+    }
+
+    .suggestion-fix.fix-surplus { /* Yellow for surplus */
+        background-color: var(--alert-warning-bg);
+        color: var(--alert-warning-text);
+        border-color: var(--alert-warning-border);
+    }
+    
+    /* --- NEW Sorting Styles --- */
+    .sortable {
+        cursor: pointer;
+        position: relative;
+    }
+    .sortable:hover {
+        background-color: var(--bg-hover);
+    }
+    .sort-indicator {
+        display: inline-block;
+        margin-left: 5px;
+        color: var(--text-tertiary);
+        opacity: 0.5;
+        transition: opacity 0.2s;
+        width: 1em; /* Reserve space */
+    }
+    .sortable.sorted-asc .sort-indicator,
+    .sortable.sorted-desc .sort-indicator {
+        opacity: 1;
+        color: var(--accent-blue);
+    }
+
+    /* --- NEW Multi-select filter styles --- */
+    .multiselect-container {
+        position: relative;
+    }
+    .multiselect-btn {
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 30px; /* Space for a dropdown arrow if needed */
+    }
+    .multiselect-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        min-width: 100%;
+        max-height: 250px;
+        overflow-y: auto;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        box-shadow: var(--shadow-md);
+        z-index: 1002;
+        padding: 5px;
+    }
+    .multiselect-dropdown.show {
+        display: block;
+    }
+    .multiselect-dropdown label {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 14px;
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+    .multiselect-dropdown label:hover {
+        background-color: var(--bg-hover);
+    }
+    .multiselect-dropdown input[type="checkbox"] {
+        margin-right: 10px;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Production Scheduling</h1>
+    <p>View open sales orders and input projected "Can Make" quantities.</p>
+</div>
+
+<div class="summary-grid">
+    <div class="summary-card orange">
+        <div class="summary-value" id="shipped-as-value">${{ "{:,.2f}".format(shipped_current_month or 0) }}</div>
+        <div class="summary-label">Shipped as {{ now.strftime('%m/%y') }}</div>
+    </div>
+    <div class="summary-card green">
+        <div class="summary-value" id="total-no-low-risk">$0.00</div>
+        <div class="summary-label">$ No/Low Risk Qty</div>
+    </div>
+    <div class="summary-card red">
+        <div class="summary-value" id="total-high-risk">$0.00</div>
+        <div class="summary-label">$ High Risk</div>
+    </div>
+    <div class="summary-card blue">
+        <div class="summary-value" id="fg-on-hand-before">{{ "${:,.2f}".format(fg_on_hand_split.value1 or 0) }}</div>
+        <div class="summary-label">{{ fg_on_hand_split.label1 }}</div>
+    </div>
+    <div class="summary-card blue">
+        <div class="summary-value" id="fg-on-hand-current">{{ "${:,.2f}".format(fg_on_hand_split.value2 or 0) }}</div>
+        <div class="summary-label">{{ fg_on_hand_split.label2 }}</div>
+    </div>
+    <div class="summary-card blue">
+        <div class="summary-value" id="fg-on-hand-future">{{ "${:,.2f}".format(fg_on_hand_split.value3 or 0) }}</div>
+        <div class="summary-label">{{ fg_on_hand_split.label3 }}</div>
+    </div>
+    <div class="summary-card purple">
+        <div class="summary-value" id="forecast-likely-value">$0.00</div>
+        <div class="summary-label">Forecasting Shipment (Likely) for {{ now.strftime('%m/%y') }}</div>
+    </div>
+    <div class="summary-card purple">
+        <div class="summary-value" id="forecast-maybe-value">$0.00</div>
+        <div class="summary-label">Forecasting Shipment (May Be) for {{ now.strftime('%m/%y') }}</div>
+    </div>
+</div>
+
+<div id="alerts"></div>
+
+<div class="controls-bar">
+    <div class="filters-container">
+        <div class="filter-group">
+            <label for="facilityFilterBtn">Facility:</label>
+            <div class="multiselect-container">
+                <button type="button" id="facilityFilterBtn" class="form-select filter-select multiselect-btn">All</button>
+                <div id="facilityFilterDropdown" class="multiselect-dropdown">
+                    </div>
+            </div>
+        </div>
+        <div class="filter-group">
+            <label for="buFilter">BU:</label>
+            <select id="buFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="soTypeFilterBtn">SO Type:</label>
+            <div class="multiselect-container">
+                <button type="button" id="soTypeFilterBtn" class="form-select filter-select multiselect-btn">All</button>
+                <div id="soTypeFilterDropdown" class="multiselect-dropdown">
+                    </div>
+            </div>
+        </div>
+        <div class="filter-group">
+            <label for="customerFilter">Customer:</label>
+            <select id="customerFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="dueShipFilterBtn">Due to Ship:</label>
+            <div class="multiselect-container">
+                <button type="button" id="dueShipFilterBtn" class="form-select filter-select multiselect-btn">All</button>
+                <div id="dueShipFilterDropdown" class="multiselect-dropdown">
+                    </div>
+            </div>
+        </div>
+        <button class="btn btn-secondary" id="resetBtn">Reset</button>
+        <div class="column-toggle-container">
+            <button class="btn btn-secondary" id="columnsBtn">Columns</button>
+            <div id="column-dropdown" class="column-toggle-dropdown">
+                </div>
+        </div>
+    </div>
+    <div class="refresh-container">
+        <span class="last-updated" id="lastUpdated"></span>
+        <button class="btn btn-primary refresh-button" id="refreshBtn">
+            🔄 Refresh Data
+        </button>
+        <button class="btn btn-secondary" id="exportBtn">
+            📥 Download XLSX
+        </button>
+    </div>
+</div>
+
+<div class="grid-container">
+    <table class="grid-table">
+        <thead>
+            <tr>
+                <th class="sortable" data-column-id="Facility" data-type="string">Facility<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="BU" data-type="string">BU<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="SO" data-type="numeric">SO<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Part" data-type="string">Part<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Customer Name" data-type="string">Customer Name<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Description" data-type="string">Part Description<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="Ord Qty - (00) Level" data-type="numeric">Ord Qty - (00) Level<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="Total Shipped Qty" data-type="numeric">Total Shipped Qty<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="Ord Qty - Cur. Level" data-type="numeric">Ord Qty - Cur. Level<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="Produced Qty" data-type="numeric">Produced Qty<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="On hand Qty" data-type="numeric">On hand Qty<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="Net Qty" data-type="numeric">Net Qty<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="ERP Can Make" data-type="numeric">ERP Can Make<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="ERP Low Risk" data-type="numeric">ERP Low Risk<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="ERP High Risk" data-type="numeric">ERP High Risk<span class="sort-indicator"></span></th>
+                <th class="sortable numeric editable-header" data-column-id="No/Low Risk Qty" data-type="numeric">No/Low Risk Qty<span class="sort-indicator"></span></th>
+                <th class="sortable numeric editable-header" data-column-id="High Risk Qty" data-type="numeric">High Risk Qty<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="UoM" data-type="string">UoM<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="Qty Per UoM" data-type="numeric">Qty Per UoM<span class="sort-indicator"></span></th>
+                <th class="sortable numeric highlight-purple" data-column-id="Ext Qty" data-type="numeric">Ext Qty<span class="sort-indicator"></span></th>
+                <th class="sortable numeric" data-column-id="Unit Price" data-type="numeric">Unit Price<span class="sort-indicator"></span></th>
+                <th class="sortable numeric highlight-green" data-column-id="$ No/Low Risk Qty" data-type="numeric">$ No/Low Risk Qty<span class="sort-indicator"></span></th>
+                <th class="sortable numeric highlight-red" data-column-id="$ High Risk" data-type="numeric">$ High Risk<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Sales Rep" data-type="string">Sales Rep<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Due to Ship" data-type="date">Due to Ship<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Requested Date" data-type="date">Requested Date<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Comp Arrived Date" data-type="date">Comp Arrived Date<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Ordered Date" data-type="date">Ordered Date<span class="sort-indicator"></span></th>
+            </tr>
+        </thead>
+        <tbody id="schedule-body">
+            {% for row in schedule_data %}
+            <tr data-so-number="{{ row['SO'] }}" data-part-number="{{ row['Part'] }}">
+                <td data-field="Facility">{{ row['Facility'] }}</td>
+                <td data-field="BU">{{ row['BU'] }}</td>
+                <td data-field="SO">{{ row['SO'] }}</td>
+                <td data-field="Part">{{ row['Part'] }}</td>
+                <td data-field="Customer Name">{{ row['Customer Name'] }}</td>
+                <td data-field="Description">{{ row['Description'] }}</td>
+                <td class="numeric">{{ "{:,.2f}".format((row['Ord Qty - (00) Level'] | float) or 0) }}</td>
+                <td class="numeric">{{ "{:,.2f}".format((row['Total Shipped Qty'] | float) or 0) }}</td>
+                <td class="numeric">{{ "{:,.2f}".format((row['Ord Qty - Cur. Level'] | float) or 0) }}</td>
+                <td class="numeric">{{ "{:,.2f}".format((row['Produced Qty'] | float) or 0) }}</td>
+                <td class="numeric">{{ "{:,.2f}".format((row['On hand Qty'] | float) or 0) }}</td>
+                <td class="numeric" data-field="Net Qty">{{ "{:,.2f}".format((row['Net Qty'] | float) or 0) }}</td>
+                <td class="numeric">{{ "{:,.2f}".format((row['Can Make - No Risk'] | float) or 0) }}</td>
+                <td class="numeric">{{ "{:,.2f}".format((row['Low Risk'] | float) or 0) }}</td>
+                <td class="numeric">{{ "{:,.2f}".format((row['High Risk'] | float) or 0) }}</td>
+                <td class="editable numeric {% if not user.is_scheduling_admin %}view-only{% endif %}"
+                    {% if user.is_scheduling_admin %}contenteditable="true"{% endif %}
+                    data-risk-type="No/Low Risk Qty" 
+                    data-price="{{ row['Unit Price'] }}">{{ "{:,.2f}".format((row['No/Low Risk Qty'] | float) or 0) }}</td>
+                <td class="editable numeric {% if not user.is_scheduling_admin %}view-only{% endif %}"
+                    {% if user.is_scheduling_admin %}contenteditable="true"{% endif %}
+                    data-risk-type="High Risk Qty" 
+                    data-price="{{ row['Unit Price'] }}">{{ "{:,.2f}".format((row['High Risk Qty'] | float) or 0) }}</td>
+                <td data-field="UoM">{{ row['UoM'] }}</td>
+                <td class="numeric" data-field="Qty Per UoM">{{ row['Qty Per UoM'] }}</td>
+                <td class="numeric highlight-purple">{{ "{:,.2f}".format((row['Ext Qty'] | float) or 0) }}</td>
+                <td class="numeric">${{ "%.4f" | format((row['Unit Price'] | float) or 0) }}</td>
+                <td class="numeric highlight-green" data-calculated-for="No/Low Risk Qty">${{ "{:,.2f}".format((row['$ No/Low Risk Qty'] | float) or 0) }}</td>
+                <td class="numeric highlight-red" data-calculated-for="High Risk Qty">${{ "{:,.2f}".format((row['$ High Risk'] | float) or 0) }}</td>
+                <td data-field="Sales Rep">{{ row['Sales Rep'] }}</td>
+                <td data-field="Due to Ship">{{ row['Due to Ship'] or '' }}</td>
+                <td data-field="Requested Date">{{ row['Requested Date'] or '' }}</td>
+                <td data-field="Comp Arrived Date">{{ row['Comp Arrived Date'] or '' }}</td>
+                <td data-field="Ordered Date">{{ row['Ordered Date'] or '' }}</td>
+                <td style="display:none;" data-field="SO Type">{{ row['SO Type'] }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="28" style="text-align: center; padding: 20px;">No scheduling data found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="grid-footer" id="gridFooter">
+    <span id="rowCount"></span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/scheduling.js') }}"></script>
+{% endblock %}

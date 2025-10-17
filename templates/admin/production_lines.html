@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Production Lines Management - Downtime Tracker{% endblock %}
+
+{% block navbar_title %}⚙️ Production Lines{% endblock %}
+
+{% block nav_links %}
+<a href="/admin/facilities">Facilities</a>
+<a href="/admin">Admin Panel</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/logout">Logout</a>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    /* Page-specific styles only */
+    .filters {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .filters label {
+        margin-right: 8px;
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+    
+    .line-count {
+        margin-left: 15px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Production Lines Management</h1>
+    <p>Configure production lines for each facility</p>
+</div>
+
+<div id="alerts"></div>
+
+<div class="actions-bar">
+    <div class="filters">
+        <label for="facilityFilter">Facility:</label>
+        <select id="facilityFilter" class="filter-select" onchange="filterLines()">
+            <option value="">All Facilities</option>
+            {% for facility in facilities %}
+            <option value="{{ facility.facility_id }}">{{ facility.facility_name }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="statusFilter" style="margin-left: 15px;">Status:</label>
+        <select id="statusFilter" class="filter-select" onchange="filterLines()">
+            <option value="active">Active</option>
+            <option value="all">All</option>
+            <option value="inactive">Inactive</option>
+        </select>
+        
+        <span class="line-count">
+            <span id="lineCount">{{ lines|selectattr('is_active')|list|length }}</span> lines
+        </span>
+    </div>
+    {% if facilities %}
+    <button class="btn btn-primary" onclick="dtUtils.openModal('addModal')">
+        + Add Production Line
+    </button>
+    {% else %}
+    <a href="/admin/facilities" class="btn btn-secondary">
+        Set up Facilities First
+    </a>
+    {% endif %}
+</div>
+
+<div class="data-table">
+    {% if lines %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Facility</th>
+                <th>Line Name</th>
+                <th>Line Code</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="linesTableBody">
+            {% for line in lines %}
+            <tr data-facility="{{ line.facility_id if line.facility_id else 0 }}" 
+                data-status="{{ 'active' if line.is_active else 'inactive' }}">
+                <td>
+                    <span class="facility-tag">{{ line.facility_name or 'Unknown' }}</span>
+                </td>
+                <td>
+                    <strong>{{ line.line_name }}</strong>
+                </td>
+                <td>
+                    {% if line.line_code %}
+                    <span class="line-code">{{ line.line_code }}</span>
+                    {% else %}
+                    <span style="color: var(--text-muted);">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if line.is_active %}
+                    <span class="status-badge status-active">Active</span>
+                    {% else %}
+                    <span class="status-badge status-inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>{{ line.created_date.strftime('%Y-%m-%d') if line.created_date else '-' }}</td>
+                <td>
+                    <div class="actions">
+                        <button class="btn btn-secondary btn-sm" 
+                                onclick="openEditModal({{ line.line_id }}, '{{ line.line_name }}', '{{ line.line_code or '' }}')">
+                            Edit
+                        </button>
+                        {% if line.is_active %}
+                        <button class="btn btn-secondary btn-sm" 
+                                onclick="dtUtils.deleteItem('/admin/lines/delete/{{ line.line_id }}', '{{ line.line_name }}')">
+                            Deactivate
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif not facilities %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🏭</div>
+        <h3>No facilities configured</h3>
+        <p>You need to set up facilities before adding production lines</p>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">⚙️</div>
+        <h3>No production lines configured</h3>
+        <p>Get started by adding production lines to your facilities</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Production Line Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="dtUtils.closeModal('addModal')">&times;</span>
+        <h2>Add Production Line</h2>
+        <form id="addForm">
+            <div class="form-group">
+                <label for="facility_id">Facility *</label>
+                <select id="facility_id" name="facility_id" class="form-select" required>
+                    <option value="">Select Facility</option>
+                    {% for facility in facilities %}
+                    <option value="{{ facility.facility_id }}">{{ facility.facility_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="line_name">Line Name *</label>
+                <input type="text" id="line_name" name="line_name" class="form-control" required 
+                       placeholder="e.g., Assembly Line 1">
+            </div>
+            <div class="form-group">
+                <label for="line_code">Line Code</label>
+                <input type="text" id="line_code" name="line_code" class="form-control" 
+                       placeholder="e.g., AL01 (optional)">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="dtUtils.closeModal('addModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Line</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Production Line Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="dtUtils.closeModal('editModal')">&times;</span>
+        <h2>Edit Production Line</h2>
+        <form id="editForm">
+            <input type="hidden" id="editLineId" name="line_id">
+            <div class="form-group">
+                <label for="editLineName">Line Name *</label>
+                <input type="text" id="editLineName" name="line_name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="editLineCode">Line Code</label>
+                <input type="text" id="editLineCode" name="line_code" class="form-control" 
+                       placeholder="e.g., AL01 (optional)">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="dtUtils.closeModal('editModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Line</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Page-specific JavaScript
+    function filterLines() {
+        const facilityId = document.getElementById('facilityFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        const rows = document.querySelectorAll('#linesTableBody tr');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const rowFacilityId = row.getAttribute('data-facility');
+            const rowStatus = row.getAttribute('data-status');
+            
+            let showByFacility = !facilityId || rowFacilityId === facilityId;
+            let showByStatus = statusFilter === 'all' || statusFilter === rowStatus;
+            
+            if (showByFacility && showByStatus) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('lineCount').textContent = visibleCount;
+    }
+    
+    function openEditModal(lineId, lineName, lineCode) {
+        document.getElementById('editLineId').value = lineId;
+        document.getElementById('editLineName').value = lineName;
+        document.getElementById('editLineCode').value = lineCode || '';
+        dtUtils.openModal('editModal');
+        document.getElementById('editLineName').focus();
+    }
+    
+    // Form submissions
+    document.getElementById('addForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        dtUtils.submitForm('addForm', '/admin/lines/add', 
+            () => {
+                dtUtils.closeModal('addModal');
+                setTimeout(() => location.reload(), 1000);
+            }
+        );
+    });
+    
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const lineId = document.getElementById('editLineId').value;
+        dtUtils.submitForm('editForm', `/admin/lines/edit/${lineId}`, 
+            () => {
+                dtUtils.closeModal('editModal');
+                setTimeout(() => location.reload(), 1000);
+            }
+        );
+    });
+    
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', filterLines);
+</script>
+{% endblock %}

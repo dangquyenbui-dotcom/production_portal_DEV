@@ -1,0 +1,32 @@
+# English translations for Downtime Tracker.
+msgid ""
+msgstr ""
+"Project-Id-Version: Downtime Tracker 1.4.0\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Hello"
+msgstr "Hello"
+
+msgid "Invalid credentials or access denied"
+msgstr "Invalid credentials or access denied"
+
+msgid "Please enter both username and password"
+msgstr "Please enter both username and password"
+
+msgid "Session expired"
+msgstr "Session expired"
+
+msgid "You have been successfully logged out"
+msgstr "You have been successfully logged out"
+
+msgid "Admin privileges required"
+msgstr "Admin privileges required"
+
+msgid "Dashboard"
+msgstr "Dashboard"
+
+msgid "Logout"
+msgstr "Logout"

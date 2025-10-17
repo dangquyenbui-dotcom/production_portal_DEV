@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}MRP Customer Summary{% endblock %}
+{% block navbar_title %}📈 MRP Customer Summary{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    .container { max-width: 98vw; }
+    .controls-bar {
+        background: var(--bg-secondary);
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 20px;
+    }
+    .filters-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        flex-grow: 1;
+        align-items: center;
+    }
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .filter-group label {
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+    .filter-select { min-width: 160px; }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    /* Accordion Styles */
+    .mrp-accordion {
+        border: none;
+    }
+
+    .so-card {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        margin-bottom: 15px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .so-card.hidden-row { display: none; }
+
+
+    .so-header {
+        display: grid;
+        grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 2fr 0.5fr;
+        gap: 20px;
+        align-items: center;
+        padding: 20px;
+        cursor: pointer;
+        border-left: 5px solid transparent;
+        transition: background-color 0.2s;
+    }
+    
+    .so-header:hover {
+        background-color: var(--bg-hover);
+    }
+
+    .so-header.status-on-track { border-left-color: var(--accent-green); }
+    .so-header.status-at-risk { border-left-color: var(--accent-orange); }
+    .so-header.status-critical { border-left-color: var(--accent-red); background-color: var(--alert-error-bg); }
+    [data-theme="dark"] .so-header.status-critical { background-color: rgba(252, 129, 129, 0.1); }
+
+    .so-info strong { font-size: 1.2em; color: var(--text-primary); }
+    .so-info small { color: var(--text-tertiary); display: block; font-size: 0.9em; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+    
+    .expand-icon { font-size: 24px; color: var(--text-tertiary); transition: transform 0.3s ease; text-align: right; }
+    .so-header.expanded .expand-icon { transform: rotate(90deg); }
+    .so-header.no-expand .expand-icon { visibility: hidden; }
+
+    .component-details { display: none; padding: 20px; background-color: var(--bg-tertiary); border-top: 1px solid var(--border-primary); }
+    .component-table { width: 100%; border-collapse: collapse; }
+    .component-table th, .component-table td { padding: 12px 20px; font-size: 13px; text-align: left; border-bottom: 1px solid var(--border-primary); }
+    .component-table thead { background-color: var(--bg-hover); }
+    .component-table th { font-weight: 600; color: var(--text-secondary); }
+    .numeric { text-align: right; }
+    .shortage { color: var(--accent-red); font-weight: bold; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>MRP Customer Summary</h1>
+    <p>View a summary of all open orders and material shortages for a specific customer.</p>
+</div>
+
+<div class="controls-bar">
+    <div class="filters-container">
+        <form id="customer-form" method="GET" class="filter-group">
+            <label for="customerFilter">Customer:</label>
+            <select id="customerFilter" name="customer" class="form-select filter-select" onchange="this.form.submit()">
+                <option value="">-- Select a Customer --</option>
+                {% for customer in customers %}
+                    <option value="{{ customer }}" {% if customer == selected_customer %}selected{% endif %}>{{ customer }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        {% if selected_customer %}
+        <div class="filter-group">
+            <label for="buFilter">BU:</label>
+            <select id="buFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="fgFilter">FG:</label>
+            <select id="fgFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="dueShipFilter">Due to Ship:</label>
+            <select id="dueShipFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="statusFilter">Status:</label>
+            <select id="statusFilter" class="form-select filter-select">
+                <option value="">All</option>
+                <option value="On-Track">On-Track</option>
+                <option value="At-Risk">At-Risk</option>
+                <option value="Critical">Critical</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" id="resetBtn">Reset Filters</button>
+        {% endif %}
+    </div>
+    <a href="{{ url_for('mrp.view_mrp') }}" class="btn btn-secondary">Back to Full MRP</a>
+</div>
+
+{% if selected_customer and summary %}
+    <div class="summary-grid">
+        <div class="stat-card">
+            <div class="stat-number blue" id="total_orders">0</div>
+            <div class="stat-label">Total Open Orders</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number green" id="on_track_orders">0</div>
+            <div class="stat-label">On-Track Orders</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number orange" id="at_risk_orders">0</div>
+            <div class="stat-label">At-Risk Orders</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number red" id="critical_orders">0</div>
+            <div class="stat-label">Critical Shortage Orders</div>
+        </div>
+    </div>
+
+    <div class="mrp-accordion">
+    {% for result in all_orders %}
+        {% set so = result.sales_order %}
+        {% set has_bottlenecks = result.bottleneck_components|length > 0 %}
+        {% set expand_class = 'no-expand' if not has_bottlenecks else '' %}
+        {% set unique_id = so.SO ~ '-' ~ so.Part|replace('.', '-') %}
+        {% set shippable_qty_formatted = "{:,.0f}".format(result.shippable_qty|float) %}
+        {% set producible_qty_formatted = "{:,.0f}".format(result.producible_qty|float) %}
+        
+        <div class="so-card"
+             data-bu="{{ so.BU }}"
+             data-fg="{{ so.Part }}"
+             data-due-ship="{{ so['Due to Ship'] or '' }}"
+             data-status="{{ result.summary_status }}">
+            <div class="so-header status-{{ result.summary_status|lower }} {{ expand_class }}" data-target="so-{{ unique_id }}">
+                <div class="so-info">
+                    <strong>{{ so.Part }}</strong>
+                    <small>{{ so.Description }}</small>
+                </div>
+                <div class="so-info">
+                    <strong>SO: {{ so.SO }}</strong>
+                    <small>PO: {{ so['Bill to PO'] or 'N/A' }}</small>
+                </div>
+                <div class="so-info">
+                    <strong>{{ (so['Due to Ship'] | date_i18n) if so['Due to Ship'] else 'N/A' }}</strong>
+                    <small>Due to Ship</small>
+                </div>
+                <div class="so-info numeric">
+                    <strong>{{ "{:,.0f}".format(so['Ord Qty - Cur. Level']) }}</strong>
+                    <small>Required</small>
+                </div>
+                <div class="so-info numeric" title="Shippable from Stock: {{ shippable_qty_formatted }}\nProducible from Components: {{ producible_qty_formatted }}">
+                    <strong>{{ "{:,.0f}".format(result.can_produce_qty) }}</strong>
+                    <small>Deliverable Qty</small>
+                </div>
+                <div class="so-info">
+                    <strong>{{ result.summary_status }}</strong>
+                    <small title="{{ result.bottleneck }}">{{ result.bottleneck }}</small>
+                </div>
+                <div class="expand-icon" style="{{ 'visibility: hidden;' if expand_class else '' }}">›</div>
+            </div>
+            
+            {% if has_bottlenecks %}
+            <div class="component-details" id="so-{{ unique_id }}">
+                <h4>Bottleneck Components</h4>
+                <table class="component-table">
+                    <thead>
+                        <tr>
+                            <th>Component Part</th>
+                            <th>Description</th>
+                            <th class="numeric" title="Total needed for this SO's required production qty">Required for SO</th>
+                            <th class="numeric" title="Current On-Hand + Open PO Qty">Total Available</th>
+                            <th class="numeric">Shortfall</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comp in result.bottleneck_components %}
+                        <tr>
+                            <td>{{ comp.part_number }}</td>
+                            <td>{{ comp.description }}</td>
+                            <td class="numeric">{{ "{:,.2f}".format(comp.total_required) }}</td>
+                            <td class="numeric">{{ "{:,.2f}".format(comp.inventory_before_this_so + comp.open_po_qty) }}</td>
+                            <td class="numeric shortage">{{ "{:,.2f}".format(comp.shortfall) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+    </div>
+
+{% elif selected_customer %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📦</div>
+        <h3>No Open Orders</h3>
+        <p>There are no open sales orders for {{ selected_customer }}.</p>
+    </div>
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">👈</div>
+        <h3>Select a Customer</h3>
+        <p>Choose a customer from the dropdown above to view their MRP summary.</p>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/mrp_summary.js') }}"></script>
+{% endblock %}

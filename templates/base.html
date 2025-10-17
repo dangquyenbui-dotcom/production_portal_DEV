@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Production Portal{% endblock %}</title>
+    
+    <link id="favicon" rel="icon" href="" type="image/png">
+    
+    <script>
+        // Define paths for JS and set initial theme/favicon to prevent flash
+        window.FAVICON_PATHS = {
+            light: "{{ url_for('static', filename='img/WPIA_Light.png') }}",
+            dark: "{{ url_for('static', filename='img/WPIA_Dark.png') }}"
+        };
+
+        (function() {
+            var theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            // Set initial favicon based on the application's theme
+            var favicon = document.getElementById('favicon');
+            if (favicon) {
+                favicon.setAttribute('href', theme === 'dark' ? window.FAVICON_PATHS.dark : window.FAVICON_PATHS.light);
+            }
+        })();
+    </script>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    {% block navbar %}
+<div class="navbar">
+    <div class="navbar-brand">
+        <a href="{{ url_for('main.dashboard') }}" class="navbar-logo-link">
+            <img src="{{ url_for('static', filename='img/wepackitall-logo-final-rgb-web.jpg') }}" alt="WePackItAll Logo" class="logo-light">
+            <img src="{{ url_for('static', filename='img/wepackitall-logo-final-rgb-reversed-web.png') }}" alt="WePackItAll Logo" class="logo-dark">
+        </a>
+        <h1>{% block navbar_title %}🏭 {{ _('Production Portal') }}{% endblock %}</h1>
+    </div>
+    <div class="nav-links">
+        {% if session.user %}
+        {% include 'components/language_selector.html' %}
+        
+        <div class="theme-toggle-wrapper">
+            <span class="theme-icon">☀️</span>
+            <label class="theme-toggle">
+                <input type="checkbox" id="themeToggle">
+                <span class="theme-toggle-slider"></span>
+            </label>
+            <span class="theme-icon">🌙</span>
+        </div>
+        {% block nav_links %}
+            {% if session.user.is_admin %}
+            <a href="/admin">{{ _('Admin Panel') }}</a>
+            {% endif %}
+            <a href="/dashboard">{{ _('Dashboard') }}</a>
+            <a href="/logout">{{ _('Logout') }}</a>
+        {% endblock %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+    
+    {% block container %}
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div id="alerts">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+    {% endblock %}
+    
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log - Downtime Tracker{% endblock %}
+
+{% block navbar_title %}📋 Audit Log{% endblock %}
+
+{% block nav_links %}
+<a href="/admin">Admin Panel</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/logout">Logout</a>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    /* Page-specific styles only */
+    .filters-bar {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 20px;
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+        border: 1px solid var(--border-primary);
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .filter-label {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .filter-control {
+        padding: 8px 12px;
+        border: 2px solid var(--input-border);
+        border-radius: 6px;
+        background: var(--input-bg);
+        color: var(--text-primary);
+        font-size: 14px;
+        min-width: 150px;
+    }
+    
+    .filter-status {
+        margin-left: auto;
+        padding: 10px 15px;
+        background: var(--bg-tertiary);
+        border-radius: 6px;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .timestamp {
+        color: var(--text-tertiary);
+        font-size: 13px;
+    }
+    
+    @media (max-width: 768px) {
+        .filters-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .filter-group {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>System Audit Log</h1>
+    <p>Complete history of all changes made to facilities and production lines</p>
+</div>
+
+<div class="filters-bar">
+    <div class="filter-group">
+        <label class="filter-label">Table</label>
+        <select id="tableFilter" class="filter-control" onchange="filterAuditLog()">
+            <option value="">All Tables</option>
+            <option value="Facilities">Facilities</option>
+            <option value="ProductionLines">Production Lines</option>
+            <option value="DowntimeCategories">Downtime Categories</option>
+            <option value="Shifts">Shifts</option>
+            <option value="UserLogins">User Logins</option>
+            <option value="Downtimes">Downtime</option>
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label class="filter-label">Action</label>
+        <select id="actionFilter" class="filter-control" onchange="filterAuditLog()">
+            <option value="">All Actions</option>
+            <option value="INSERT">Created</option>
+            <option value="UPDATE">Modified</option>
+            <option value="DEACTIVATE">Deactivated</option>
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label class="filter-label">User</label>
+        <select id="userFilter" class="filter-control" onchange="filterAuditLog()">
+            <option value="">All Users</option>
+            {% set users = history|map(attribute='changed_by')|unique|list %}
+            {% for user in users %}
+            <option value="{{ user }}">{{ user }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <label class="filter-label">Date Range</label>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="date" id="startDateFilter" class="filter-control" onchange="filterAuditLog()">
+            <span>to</span>
+            <input type="date" id="endDateFilter" class="filter-control" onchange="filterAuditLog()">
+        </div>
+    </div>
+    
+    <button class="btn btn-primary" onclick="resetFilters()">Reset Filters</button>
+    
+    <div class="filter-status" id="filterStatus">
+        Showing all records
+    </div>
+</div>
+
+<div class="audit-table">
+    {% if history %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date & Time</th>
+                <th>Table</th>
+                <th>Record</th>
+                <th>Action</th>
+                <th>Changes</th>
+                <th>User</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody id="auditTableBody">
+            {% for entry in history %}
+            <tr data-table="{{ entry.table_name }}" 
+                data-action="{{ entry.action_type }}" 
+                data-user="{{ entry.changed_by }}"
+                data-date="{{ entry.changed_date.strftime('%Y-%m-%d') }}">
+                <td>
+                    <div class="timestamp">
+                        {{ entry.changed_date.strftime('%Y-%m-%d') }}<br>
+                        <strong>{{ entry.changed_date.strftime('%H:%M:%S') }}</strong>
+                    </div>
+                </td>
+                <td>{{ entry.table_name }}</td>
+                <td>#{{ entry.record_id }}</td>
+                <td>
+                    {% if entry.action_type == 'INSERT' %}
+                    <span class="action-badge action-insert">Created</span>
+                    {% elif entry.action_type == 'UPDATE' %}
+                    <span class="action-badge action-update">Updated</span>
+                    {% elif entry.action_type == 'DEACTIVATE' %}
+                    <span class="action-badge action-deactivate">Deactivated</span>
+                    {% elif entry.action_type == 'DELETE' %}
+                    <span class="action-badge action-delete">Deleted</span>
+                    {% else %}
+                    <span class="action-badge">{{ entry.action_type }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if entry.field_name %}
+                    <div class="change-detail">
+                        <strong>{{ entry.field_name }}:</strong><br>
+                        <span class="old-value">{{ entry.old_value or '(empty)' }}</span>
+                        →
+                        <span class="new-value">{{ entry.new_value or '(empty)' }}</span>
+                    </div>
+                    {% else %}
+                    <span style="color: var(--text-muted);">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="user-tag">{{ entry.changed_by }}</span>
+                </td>
+                <td>
+                    {% if entry.additional_notes %}
+                    <small>{{ entry.additional_notes }}</small>
+                    {% endif %}
+                    {% if entry.user_ip %}
+                    <small style="color: var(--text-muted);">IP: {{ entry.user_ip }}</small>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <h3>No audit history available</h3>
+        <p>Changes to facilities and production lines will appear here</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Page-specific filtering logic
+    function filterAuditLog() {
+        const tableFilter = document.getElementById('tableFilter').value.toLowerCase();
+        const actionFilter = document.getElementById('actionFilter').value.toLowerCase();
+        const userFilter = document.getElementById('userFilter').value.toLowerCase();
+        const startDate = document.getElementById('startDateFilter').value;
+        const endDate = document.getElementById('endDateFilter').value;
+        
+        const rows = document.querySelectorAll('#auditTableBody tr');
+        let visibleCount = 0;
+        let hiddenCount = 0;
+        
+        rows.forEach(row => {
+            const table = row.getAttribute('data-table').toLowerCase();
+            const action = row.getAttribute('data-action').toLowerCase();
+            const user = row.getAttribute('data-user').toLowerCase();
+            const date = row.getAttribute('data-date');
+            
+            let show = true;
+            
+            if (tableFilter && !table.includes(tableFilter)) show = false;
+            if (actionFilter && !action.includes(actionFilter)) show = false;
+            if (userFilter && !user.includes(userFilter)) show = false;
+            if (startDate && date < startDate) show = false;
+            if (endDate && date > endDate) show = false;
+            
+            row.style.display = show ? '' : 'none';
+            if (show) visibleCount++; else hiddenCount++;
+        });
+        
+        updateFilterStatus(visibleCount, hiddenCount);
+    }
+    
+    function resetFilters() {
+        document.getElementById('tableFilter').value = '';
+        document.getElementById('actionFilter').value = '';
+        document.getElementById('userFilter').value = '';
+        document.getElementById('startDateFilter').value = '';
+        document.getElementById('endDateFilter').value = '';
+        filterAuditLog();
+    }
+    
+    function updateFilterStatus(visible, hidden) {
+        const statusEl = document.getElementById('filterStatus');
+        const total = visible + hidden;
+        if (hidden === 0) {
+            statusEl.innerHTML = `Showing all <strong>${total}</strong> records`;
+        } else {
+            statusEl.innerHTML = `Showing <strong>${visible}</strong> of <strong>${total}</strong> records`;
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const rows = document.querySelectorAll('#auditTableBody tr');
+        updateFilterStatus(rows.length, 0);
+    });
+</script>
+{% endblock %}

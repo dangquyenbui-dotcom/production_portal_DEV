@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Bill of Materials Viewer{% endblock %}
+
+{% block navbar_title %}📜 Bill of Materials{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    .container {
+        max-width: 98vw;
+    }
+
+    .search-bar {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        border: 2px solid var(--input-border);
+        border-radius: 8px;
+        background: var(--input-bg);
+        transition: all 0.3s ease;
+    }
+
+    .search-bar:focus-within {
+        border-color: var(--input-focus-border);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .search-icon {
+        color: var(--text-tertiary);
+        font-size: 20px;
+        padding-left: 15px;
+        padding-right: 10px;
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        flex-grow: 1;
+        padding: 12px 16px 12px 0;
+        border: none;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 14px;
+    }
+
+    .search-input:focus {
+        outline: none;
+        box-shadow: none;
+    }
+    
+    .data-table {
+        max-height: 80vh;
+        overflow: auto;
+    }
+    
+    /* --- NEW: Styles for the Export button and Footer --- */
+    .export-btn {
+        margin-right: 10px; /* Space from the right edge */
+        white-space: nowrap; /* Prevent button text from wrapping */
+    }
+
+    .grid-footer {
+        padding: 10px;
+        text-align: right;
+        font-size: 14px;
+        color: var(--text-tertiary);
+        font-weight: 500;
+        background: var(--bg-secondary);
+        border-radius: 0 0 10px 10px;
+        border: 1px solid var(--border-primary);
+        border-top: none;
+        margin-top: -1px; /* Overlap with table bottom border */
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Bill of Materials (BOM) Viewer</h1>
+    <p>Search and view all active, latest-revision Bill of Materials from the ERP system.</p>
+</div>
+
+<div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="search-input" id="bomSearch" 
+           placeholder="Search by Parent Part Number, Component Part Number, or Description..."
+           value="{{ filter_part_number or '' }}">
+    <button class="btn btn-secondary export-btn" id="exportBtn">
+        📥 Download XLSX
+    </button>
+</div>
+
+<div class="data-table">
+    {% if boms %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Parent Part Number</th>
+                <th>Seq</th>
+                <th>Part Number</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit</th>
+                <th>Scrap %</th>
+            </tr>
+        </thead>
+        <tbody id="bomTableBody">
+            {% for row in boms %}
+            <tr>
+                <td><strong>{{ row['Parent Part Number'] }}</strong></td>
+                <td>{{ row.Seq }}</td>
+                <td>{{ row['Part Number'] }}</td>
+                <td>{{ row.Description }}</td>
+                <td>{{ row.Quantity }}</td>
+                <td>{{ row.Unit }}</td>
+                <td>{{ "%.2f"|format(row['Scrap %']|float) }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📜</div>
+        <h3>No BOM data found</h3>
+        <p>Could not retrieve Bill of Materials information from the ERP.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="grid-footer" id="gridFooter">
+    <span id="rowCount"></span>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/bom.js') }}"></script>
+{% endblock %}

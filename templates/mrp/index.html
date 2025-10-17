@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+
+{% block title %}MRP Suggestions Dashboard{% endblock %}
+{% block navbar_title %}🧠 MRP Dashboard{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    .container { max-width: 98vw; }
+
+    /* --- FILTERS & SUMMARY --- */
+    .controls-bar {
+        background: var(--bg-secondary);
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 20px;
+    }
+    .filters-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        flex-grow: 1;
+        align-items: center;
+    }
+    .actions-container {
+        display: flex;
+        gap: 10px;
+        margin-left: auto; /* Pushes actions to the right */
+    }
+    .refresh-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    .last-updated {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        white-space: nowrap;
+    }
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .filter-group label {
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+    .filter-select { min-width: 160px; }
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .summary-card {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+    }
+    .summary-value {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    .summary-label {
+        font-size: 14px;
+        color: var(--text-tertiary);
+        font-weight: 500;
+    }
+    .summary-card.total .summary-value { color: var(--accent-blue); }
+    .summary-card.ok .summary-value { color: var(--accent-green); }
+    .summary-card.partial .summary-value { color: var(--accent-orange); }
+    .summary-card.critical .summary-value { color: var(--accent-red); }
+    .summary-card.blue .summary-value { color: var(--accent-blue); }
+    .summary-card.purple .summary-value { color: var(--accent-purple); }
+    .summary-card.teal .summary-value { color: #38B2AC; }
+    [data-theme="dark"] .summary-card.teal .summary-value { color: #81e6d9; }
+
+
+    /* --- ACCORDION --- */
+    .so-header-static, .so-header {
+        display: grid;
+        grid-template-columns: 1fr 2.5fr 1.5fr 1.2fr 1fr 1fr 1.5fr 0.5fr;
+        gap: 15px;
+        align-items: center;
+    }
+    .so-header-static {
+        padding: 10px 20px;
+        background: var(--table-header-bg);
+        border: 1px solid var(--border-primary);
+        border-radius: 10px 10px 0 0;
+        border-bottom: 2px solid var(--border-primary);
+    }
+    .so-header-static .so-info label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .so-header-static .so-info.sortable {
+        cursor: pointer;
+    }
+    .so-header-static .so-info.sortable:hover {
+        color: var(--text-primary);
+    }
+    .sort-indicator {
+        display: inline-block;
+        margin-left: 5px;
+        color: var(--text-tertiary);
+        opacity: 0.5;
+        transition: opacity 0.2s;
+        width: 1em; /* Reserve space */
+    }
+    .sortable.sorted-asc .sort-indicator,
+    .sortable.sorted-desc .sort-indicator {
+        opacity: 1;
+        color: var(--accent-blue);
+    }
+
+    .mrp-accordion {
+        border: 1px solid var(--border-primary);
+        border-top: none;
+        box-shadow: var(--shadow-sm);
+    }
+    .so-header {
+        background: var(--bg-secondary);
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-primary);
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .so-header.no-expand {
+        cursor: default;
+    }
+    .so-header:last-child {
+        border-bottom: none;
+    }
+    .so-header:hover:not(.no-expand) { background-color: var(--bg-hover); }
+    .so-header.hidden-row { display: none; }
+    
+    .so-header.highlight-ok { border-left: 5px solid var(--accent-green); }
+    .so-header.highlight-ready-to-ship { border-left: 5px solid var(--accent-green); }
+    .so-header.highlight-pending-qc { border-left: 5px solid var(--accent-purple); }
+    .so-header.highlight-job-created { border-left: 5px solid #38B2AC; }
+    .so-header.highlight-partial-ship, .so-header.highlight-partial { border-left: 5px solid var(--accent-orange); }
+    .so-header.highlight-critical { border-left: 5px solid var(--accent-red); }
+
+    .so-header.highlight-partial { background-color: var(--alert-warning-bg); }
+    .so-header.highlight-critical { background-color: var(--alert-error-bg); }
+
+    [data-theme="dark"] .so-header.highlight-partial { background-color: rgba(246, 173, 85, 0.1); }
+    [data-theme="dark"] .so-header.highlight-critical { background-color: rgba(252, 129, 129, 0.1); }
+
+
+    .so-info { font-size: 14px; }
+    .so-info label { font-size: 11px; color: var(--text-tertiary); display: block; text-transform: uppercase; }
+    .so-info strong { color: var(--text-primary); font-size: 1.1em; }
+    .bottleneck-tag {
+        padding: 5px 10px; border-radius: 5px; text-align: center;
+        font-weight: 600; font-size: 13px;
+    }
+    .bottleneck-tag.bottleneck { background: rgba(252, 129, 129, 0.2); color: var(--accent-red); }
+    .bottleneck-tag.no-bottleneck { background: rgba(104, 211, 145, 0.2); color: var(--accent-green); }
+    .partial-ship-tag { background: rgba(237, 137, 54, 0.15); color: var(--accent-orange); }
+
+    .job-created-tag {
+        background-color: rgba(79, 209, 197, 0.2);
+        color: #2c7a7b;
+        padding: 8px 12px;
+        border-radius: 5px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    [data-theme="dark"] .job-created-tag {
+        color: #81e6d9;
+    }
+    .ready-to-ship {
+        background: rgba(104, 211, 145, 0.2);
+        color: var(--accent-green);
+        padding: 8px 12px;
+        border-radius: 5px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    .pending-qc-tag {
+        background: rgba(183, 148, 244, 0.2);
+        color: var(--accent-purple);
+        padding: 8px 12px;
+        border-radius: 5px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    .expand-icon {
+        font-size: 24px; color: var(--text-tertiary);
+        transition: transform 0.3s ease; text-align: right;
+    }
+    .so-header.expanded .expand-icon { transform: rotate(90deg); }
+    .component-details {
+        display: none; padding: 0; background-color: var(--bg-primary);
+    }
+    .component-table { width: 100%; border-collapse: collapse; }
+    .component-table th, .component-table td {
+        border-bottom: 1px solid var(--border-primary); padding: 12px 15px; font-size: 13px;
+    }
+    .component-table th { background-color: var(--bg-tertiary); }
+    .component-table th[title] { cursor: help; }
+    .component-table tr.bottleneck-row td { background-color: rgba(252, 129, 129, 0.1); font-weight: 600; }
+    [data-theme="dark"] .component-table tr.bottleneck-row td { background-color: rgba(252, 129, 129, 0.15); }
+    .numeric { text-align: right; }
+    .shared-icon {
+        font-size: 16px;
+        color: var(--accent-purple);
+        cursor: help;
+        margin-right: 5px;
+    }
+    .grid-footer {
+        padding: 10px 20px;
+        text-align: right;
+        font-size: 14px;
+        color: var(--text-tertiary);
+        font-weight: 500;
+        background: var(--bg-secondary);
+        border-radius: 0 0 10px 10px;
+        border: 1px solid var(--border-primary);
+        border-top: none;
+        margin-top: -1px; /* Overlap with accordion bottom border */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Material Requirements Planning (MRP)</h1>
+    <p>Production suggestions for open Sales Orders based on material availability.</p>
+</div>
+
+<div class="controls-bar">
+    <div class="filters-container">
+        <div class="filter-group">
+            <label for="buFilter">BU:</label>
+            <select id="buFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="customerFilter">Customer:</label>
+            <select id="customerFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="fgFilter">FG:</label>
+            <select id="fgFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="dueShipFilter">Due to Ship:</label>
+            <select id="dueShipFilter" class="form-select filter-select"><option value="">All</option></select>
+        </div>
+        <div class="filter-group">
+            <label for="statusFilter">Status:</label>
+            <select id="statusFilter" class="form-select filter-select">
+                <option value="">All</option>
+                <option value="ready-to-ship">Ready to Ship</option>
+                <option value="production-needed">Partial Ship / Production Needed</option>
+                <option value="action-required">Action Required</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" id="resetBtn">Reset Filters</button>
+    </div>
+    <div class="actions-container">
+        <div class="refresh-container">
+            <span class="last-updated" id="lastUpdated"></span>
+            <button class="btn btn-primary refresh-button" id="refreshBtn">
+                🔄 Refresh Data
+            </button>
+        </div>
+        <button class="btn btn-secondary" id="exportBtn">📥 Download XLSX</button>
+    </div>
+</div>
+
+<div class="summary-grid">
+    <div class="summary-card total">
+        <div class="summary-value" id="total-orders">0</div>
+        <div class="summary-label">Total Orders</div>
+    </div>
+     <div class="summary-card teal">
+        <div class="summary-value" id="job-created-count">0</div>
+        <div class="summary-label">Job Created</div>
+    </div>
+    <div class="summary-card blue">
+        <div class="summary-value" id="ready-to-ship-count">0</div>
+        <div class="summary-label">Ready to Ship</div>
+    </div>
+    <div class="summary-card partial">
+        <div class="summary-value" id="partial-shipment-count">0</div>
+        <div class="summary-label">Partial Shipment</div>
+    </div>
+    <div class="summary-card purple">
+        <div class="summary-value" id="pending-qc-count">0</div>
+        <div class="summary-label">Pending QC</div>
+    </div>
+    <div class="summary-card ok">
+        <div class="summary-value" id="full-production">0</div>
+        <div class="summary-label">Full Production</div>
+    </div>
+    <div class="summary-card partial">
+        <div class="summary-value" id="partial-production">0</div>
+        <div class="summary-label">Partial Production</div>
+    </div>
+    <div class="summary-card critical">
+        <div class="summary-value" id="critical-shortage">0</div>
+        <div class="summary-label">Critical Shortage</div>
+    </div>
+</div>
+
+<div class="so-header-static">
+    <div class="so-info sortable" data-column-id="SO" data-column-type="string">
+        <label>Sales Order</label><span class="sort-indicator"></span>
+    </div>
+    <div class="so-info sortable" data-column-id="Customer" data-column-type="string">
+        <label>Customer</label><span class="sort-indicator"></span>
+    </div>
+    <div class="so-info sortable" data-column-id="FG" data-column-type="string">
+        <label>Finished Good</label><span class="sort-indicator"></span>
+    </div>
+    <div class="so-info sortable" data-column-id="DueShip" data-column-type="date">
+        <label>Due to Ship</label><span class="sort-indicator"></span>
+    </div>
+    <div class="so-info numeric sortable" data-column-id="Required" data-column-type="numeric">
+        <label>Required</label><span class="sort-indicator"></span>
+    </div>
+    <div class="so-info numeric sortable" data-column-id="CanProduce" data-column-type="numeric">
+        <label>Deliverable Qty</label><span class="sort-indicator"></span>
+    </div>
+    <div class="so-info sortable" data-column-id="Bottleneck" data-column-type="string">
+        <label>Status / Bottleneck</label><span class="sort-indicator"></span>
+    </div>
+    <div class="expand-icon" style="visibility: hidden;">›</div>
+</div>
+
+<div class="mrp-accordion">
+    {% for result in mrp_results %}
+        {% set so = result.sales_order %}
+        {% set status = result.status %}
+        {% set material_status = result.material_status or status %}
+        {% set has_components = result.components|length > 0 %}
+        {% set expand_class = 'no-expand' if status in ['ready-to-ship', 'pending-qc'] or not has_components else '' %}
+        {% set unique_id = so.SO ~ '-' ~ so.Part|replace('.', '-') %}
+        {% set shippable_qty_formatted = "{:,.0f}".format(result.shippable_qty|float) %}
+        {% set producible_qty_formatted = "{:,.0f}".format(result.producible_qty|float) %}
+
+        <div class="so-header highlight-{{ material_status }} {{ expand_class }}"
+             data-target="so-{{ unique_id }}"
+             data-facility="{{ so.Facility }}"
+             data-bu="{{ so.BU }}"
+             data-customer="{{ so['Customer Name'] }}"
+             data-fg="{{ so.Part }}"
+             data-due-ship="{{ so['Due to Ship'] or '' }}"
+             data-status="{{ status }}"
+             data-net-qty="{{ so['Net Qty'] }}">
+            
+            <div class="so-info"><strong>{{ so.SO }}</strong></div>
+            <div class="so-info" title="{{ so['Customer Name'] }}"><strong>{{ so['Customer Name'] }}</strong></div>
+            <div class="so-info"><strong>{{ so.Part }}</strong></div>
+            <div class="so-info"><strong>{{ (so['Due to Ship'] | date_i18n) if so['Due to Ship'] else 'N/A' }}</strong></div>
+            <div class="so-info numeric" title="Required: {{ '{:,.0f}'.format(so['Ord Qty - Cur. Level']) }}\nOn-Hand FG: {{ '{:,.0f}'.format(so['On Hand Qty Approved']) }}\nNet to Produce: {{ '{:,.0f}'.format(so['Net Qty']) }}"><strong>{{ "{:,.0f}".format(so['Ord Qty - Cur. Level']) }}</strong></div>
+            <div class="so-info numeric" title="Shippable from Stock: {{ shippable_qty_formatted }}\nProducible from Components: {{ producible_qty_formatted }}">
+                <strong style="font-size: 1.3em;">{{ "{:,.0f}".format(result.can_produce_qty) }}</strong>
+            </div>
+            
+            <div class="so-info">
+                {% if status == 'job-created' %}
+                    {% set jobs = result.job_details %}
+                    {% set display_text = result.bottleneck %}
+                    {% set tooltip_text = '' %}
+
+                    {# Build detailed tooltip for multiple jobs #}
+                    {% if jobs and jobs|length > 1 %}
+                        {% set job_numbers_display = [] %}
+                        {% for j in jobs %}{% set _ = job_numbers_display.append(j.jo_jobnum) %}{% endfor %}
+                        {% set display_text = 'Jobs: ' ~ job_numbers_display|join(', ') %}
+
+                        {% set tooltip_lines = [] %}
+                        {% for job in jobs %}
+                            {% set completed = '{:,.0f}'.format(job.completed_quantity|float) %}
+                            {% set target = '{:,.0f}'.format(job.job_quantity|float) %}
+                            {% set _ = tooltip_lines.append('Job ' ~ job.jo_jobnum ~ ': ' ~ completed ~ ' / ' ~ target) %}
+                        {% endfor %}
+                        {% set tooltip_text = tooltip_lines|join('\n') %}
+                        {% if result.bottleneck_parts %}
+                            {% set bottleneck_str = result.bottleneck_parts|join(', ') %}
+                            {% set display_text = display_text ~ ' - ' ~ bottleneck_str %}
+                            {% set tooltip_text = tooltip_text ~ '\nShortages: ' ~ bottleneck_str %}
+                        {% endif %}
+                    {% else %}
+                        {# For single jobs, the full text is the tooltip #}
+                        {% set tooltip_text = result.bottleneck %}
+                    {% endif %}
+                    <div class="job-created-tag" title="{{ tooltip_text }}">{{ display_text }}</div>
+                {% elif status == 'ready-to-ship' %}
+                    <div class="ready-to-ship" title="Can be fulfilled from existing on-hand stock of {{ "{:,.0f}".format(so['On Hand Qty Approved']) }} units.">Ready to Ship</div>
+                {% elif status == 'pending-qc' %}
+                    <div class="pending-qc-tag" title="Sufficient quantity is in inventory but awaiting QC approval.">{{ result.bottleneck }}</div>
+                {% elif status == 'partial-ship' %}
+                    <div class="bottleneck-tag partial-ship-tag" title="Shippable: {{ shippable_qty_formatted }}, Needed: {{ '{:,.0f}'.format(so['Net Qty']) }}, Producible: {{ producible_qty_formatted }}">{{ result.bottleneck }}</div>
+                {% else %}
+                    {% set bottleneck_class = 'no-bottleneck' if status == 'ok' else 'bottleneck' %}
+                    <div class="bottleneck-tag {{ bottleneck_class }}">{{ result.bottleneck or 'None' }}</div>
+                {% endif %}
+            </div>
+
+            <div class="expand-icon" style="{{ 'visibility: hidden;' if expand_class else '' }}">›</div>
+        </div>
+        
+        {% if has_components %}
+        <div class="component-details" id="so-{{ unique_id }}">
+            <table class="component-table">
+                <thead>
+                    <tr>
+                        <th>Component Part</th>
+                        <th>Description</th>
+                        <th class="numeric" title="The total amount of this component needed to produce the full sales order quantity.">Total Required</th>
+                        <th class="numeric" title="The total physical on-hand quantity of this component from the ERP.">Initial On-Hand</th>
+                        <th class="numeric" title="On-hand inventory remaining after allocating to higher-priority (earlier Due Date) orders.">Avail. Before SO</th>
+                        <th class="numeric" title="Quantity reserved for this SO, based on net production need. Does not deplete for 'Ready to Ship' orders.">Allocated</th>
+                        <th class="numeric" title="Total quantity for this component on open purchase orders.">Open PO Qty</th>
+                        <th class="numeric" title="Material shortage for this SO. Calculated as (Net Production Qty * Qty Per Unit) - (Avail. Before SO + Open PO Qty).">Shortfall</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for comp in result.components %}
+                    <tr class="{{ 'bottleneck-row' if comp.part_number in result.bottleneck_parts else '' }}">
+                        <td>
+                            {% if comp.shared_with_so %}
+                                {% set so_list = comp.shared_with_so | join('\n') %}
+                                <span class="shared-icon" title="{{ so_list }}">🔗</span>
+                            {% endif %}
+                            {{ comp.part_number }}
+                        </td>
+                        <td>{{ comp.description }}</td>
+                        <td class="numeric">{{ "{:,.2f}".format(comp.total_required) }}</td>
+                        <td class="numeric">{{ "{:,.2f}".format(comp.on_hand_initial) }}</td>
+                        <td class="numeric"><strong>{{ "{:,.2f}".format(comp.inventory_before_this_so) }}</strong></td>
+                        <td class="numeric">{{ "{:,.2f}".format(comp.allocated_for_this_so) }}</td>
+                        <td class="numeric">{{ "{:,.2f}".format(comp.open_po_qty) }}</td>
+                        <td class="numeric {{ 'bottleneck' if comp.shortfall > 0 else '' }}">
+                            <strong>{{ "{:,.2f}".format(comp.shortfall) }}</strong>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    {% else %}
+    <div class="empty-state" style="padding: 40px; background: var(--bg-secondary); border-radius: 10px;">
+        <div class="empty-state-icon">✅</div>
+        <h3>No MRP Suggestions</h3>
+        <p>There are currently no open sales orders that require production based on on-hand inventory.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="grid-footer" id="gridFooter">
+    <span id="rowCount"></span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/mrp.js') }}"></script>
+{% endblock %}

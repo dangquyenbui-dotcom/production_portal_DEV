@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+
+{% block title %}Shift Management - Downtime Tracker{% endblock %}
+
+{% block navbar_title %}🕐 Shift Management{% endblock %}
+
+{% block nav_links %}
+<a href="/admin">Admin Panel</a>
+<a href="/admin/audit-log">Audit Log</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/logout">Logout</a>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    /* Page-specific styles for shifts */
+    .shift-card {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+        margin-bottom: 15px;
+        transition: transform 0.2s ease;
+    }
+    
+    .shift-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .shift-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .shift-title {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .shift-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .shift-code {
+        background: var(--gradient-primary);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 15px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    
+    .shift-times {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 15px 0;
+        padding: 15px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        border: 1px solid var(--border-primary);
+    }
+    
+    .time-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 15px;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        border: 1px solid var(--border-secondary);
+    }
+    
+    .time-label {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+    
+    .time-value {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .time-arrow {
+        font-size: 24px;
+        color: var(--text-tertiary);
+    }
+    
+    .duration-badge {
+        background: var(--accent-blue);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-left: auto;
+    }
+    
+    .overnight-badge {
+        background: var(--accent-purple);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-left: 10px;
+    }
+    
+    .shift-description {
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 10px 0;
+    }
+    
+    .shift-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid var(--border-primary);
+        font-size: 12px;
+        color: var(--text-tertiary);
+    }
+    
+    .shift-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .shifts-grid {
+        display: grid;
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .time-input-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    /* Visual time picker enhancement */
+    .time-preview {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        margin-top: 10px;
+        border: 1px solid var(--border-primary);
+    }
+    
+    .time-preview-item {
+        text-align: center;
+    }
+    
+    .time-preview-label {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+    
+    .time-preview-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .time-preview-arrow {
+        font-size: 20px;
+        color: var(--text-tertiary);
+    }
+    
+    @media (max-width: 768px) {
+        .shift-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .shift-times {
+            flex-direction: column;
+        }
+        
+        .time-input-group {
+            grid-template-columns: 1fr;
+        }
+        
+        .shift-footer {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Shift Management</h1>
+    <p>Configure work shifts and schedules for downtime tracking</p>
+</div>
+
+<div id="alerts"></div>
+
+<div class="actions-bar">
+    <div class="filter-section">
+        <div>
+            <span class="shift-count"><span id="visibleCount">{{ shifts|selectattr('is_active')|list|length }}</span></span> shifts
+        </div>
+        <select class="filter-select" id="statusFilter" onchange="filterShifts()">
+            <option value="active">Active</option>
+            <option value="all">All</option>
+            <option value="inactive">Inactive</option>
+        </select>
+    </div>
+    <button class="btn btn-primary" onclick="dtUtils.openModal('addModal')">
+        + Add New Shift
+    </button>
+</div>
+
+<div class="shifts-grid">
+    {% if shifts %}
+        {% for shift in shifts %}
+        <div class="shift-card" data-status="{{ 'active' if shift.is_active else 'inactive' }}" data-shift-id="{{ shift.shift_id }}">
+            <div class="shift-header">
+                <div class="shift-title">
+                    <span class="shift-name">{{ shift.shift_name }}</span>
+                    {% if shift.shift_code %}
+                    <span class="shift-code">{{ shift.shift_code }}</span>
+                    {% endif %}
+                    {% if shift.is_active %}
+                    <span class="status-badge status-active">Active</span>
+                    {% else %}
+                    <span class="status-badge status-inactive">Inactive</span>
+                    {% endif %}
+                </div>
+                <div class="shift-actions">
+                    <button class="btn btn-secondary btn-sm" 
+                            onclick="openEditModal({{ shift.shift_id }}, '{{ shift.shift_name }}', '{{ shift.shift_code or '' }}', '{{ shift.start_time }}', '{{ shift.end_time }}', '{{ shift.description or '' }}')">
+                        Edit
+                    </button>
+                    {% if shift.is_active %}
+                    <button class="btn btn-secondary btn-sm" 
+                            onclick="deleteShift({{ shift.shift_id }}, '{{ shift.shift_name }}')">
+                        Deactivate
+                    </button>
+                    {% else %}
+                    <button class="btn btn-info btn-sm" 
+                            onclick="reactivateShift({{ shift.shift_id }}, '{{ shift.shift_name }}')">
+                        Reactivate
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="shift-times">
+                <div class="time-badge">
+                    <span class="time-label">Start</span>
+                    <span class="time-value">{{ shift.start_time }}</span>
+                </div>
+                <span class="time-arrow">→</span>
+                <div class="time-badge">
+                    <span class="time-label">End</span>
+                    <span class="time-value">{{ shift.end_time }}</span>
+                </div>
+                <span class="duration-badge">{{ shift.duration_hours|round(1) }} hours</span>
+                {% if shift.is_overnight %}
+                <span class="overnight-badge">Overnight</span>
+                {% endif %}
+            </div>
+            
+            {% if shift.description %}
+            <div class="shift-description">
+                {{ shift.description }}
+            </div>
+            {% endif %}
+            
+            <div class="shift-footer">
+                <div>
+                    Created: {{ shift.created_date.strftime('%Y-%m-%d') if shift.created_date else '-' }}
+                    {% if shift.created_by %}
+                    by {{ shift.created_by }}
+                    {% endif %}
+                </div>
+                {% if shift.modified_date %}
+                <div>
+                    Modified: {{ shift.modified_date.strftime('%Y-%m-%d') }}
+                    {% if shift.modified_by %}
+                    by {{ shift.modified_by }}
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🕐</div>
+        <h3>No shifts configured</h3>
+        <p>Get started by adding work shift definitions</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Shift Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="dtUtils.closeModal('addModal')">&times;</span>
+        <h2>Add New Shift</h2>
+        <form id="addForm">
+            <div class="form-group">
+                <label for="shift_name">Shift Name *</label>
+                <input type="text" id="shift_name" name="shift_name" class="form-control" required 
+                       placeholder="e.g., Morning Shift">
+            </div>
+            
+            <div class="form-group">
+                <label for="shift_code">Shift Code</label>
+                <input type="text" id="shift_code" name="shift_code" class="form-control" 
+                       placeholder="e.g., MS (optional)" maxlength="10">
+            </div>
+            
+            <div class="time-input-group">
+                <div class="form-group">
+                    <label for="start_time">Start Time *</label>
+                    <input type="time" id="start_time" name="start_time" class="form-control" required 
+                           onchange="updateTimePreview('add')">
+                </div>
+                <div class="form-group">
+                    <label for="end_time">End Time *</label>
+                    <input type="time" id="end_time" name="end_time" class="form-control" required 
+                           onchange="updateTimePreview('add')">
+                </div>
+            </div>
+            
+            <div id="addTimePreview" class="time-preview" style="display: none;">
+                <div class="time-preview-item">
+                    <div class="time-preview-label">Start</div>
+                    <div class="time-preview-value" id="addPreviewStart">--:--</div>
+                </div>
+                <div class="time-preview-arrow">→</div>
+                <div class="time-preview-item">
+                    <div class="time-preview-label">End</div>
+                    <div class="time-preview-value" id="addPreviewEnd">--:--</div>
+                </div>
+                <div class="time-preview-item">
+                    <div class="time-preview-label">Duration</div>
+                    <div class="time-preview-value" id="addPreviewDuration">-- hrs</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" class="form-control" rows="3" 
+                          placeholder="Optional description of this shift"></textarea>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="dtUtils.closeModal('addModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Shift</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Shift Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="dtUtils.closeModal('editModal')">&times;</span>
+        <h2>Edit Shift</h2>
+        <form id="editForm">
+            <input type="hidden" id="editShiftId" name="shift_id">
+            
+            <div class="form-group">
+                <label for="editShiftName">Shift Name *</label>
+                <input type="text" id="editShiftName" name="shift_name" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="editShiftCode">Shift Code</label>
+                <input type="text" id="editShiftCode" name="shift_code" class="form-control" maxlength="10">
+            </div>
+            
+            <div class="time-input-group">
+                <div class="form-group">
+                    <label for="editStartTime">Start Time *</label>
+                    <input type="time" id="editStartTime" name="start_time" class="form-control" required 
+                           onchange="updateTimePreview('edit')">
+                </div>
+                <div class="form-group">
+                    <label for="editEndTime">End Time *</label>
+                    <input type="time" id="editEndTime" name="end_time" class="form-control" required 
+                           onchange="updateTimePreview('edit')">
+                </div>
+            </div>
+            
+            <div id="editTimePreview" class="time-preview" style="display: none;">
+                <div class="time-preview-item">
+                    <div class="time-preview-label">Start</div>
+                    <div class="time-preview-value" id="editPreviewStart">--:--</div>
+                </div>
+                <div class="time-preview-arrow">→</div>
+                <div class="time-preview-item">
+                    <div class="time-preview-label">End</div>
+                    <div class="time-preview-value" id="editPreviewEnd">--:--</div>
+                </div>
+                <div class="time-preview-item">
+                    <div class="time-preview-label">Duration</div>
+                    <div class="time-preview-value" id="editPreviewDuration">-- hrs</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="editDescription">Description</label>
+                <textarea id="editDescription" name="description" class="form-control" rows="3"></textarea>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="dtUtils.closeModal('editModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Shift</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Filter shifts by status
+    function filterShifts() {
+        const filter = document.getElementById('statusFilter').value;
+        const shiftCards = document.querySelectorAll('.shift-card');
+        let visibleCount = 0;
+        
+        shiftCards.forEach(card => {
+            const status = card.getAttribute('data-status');
+            
+            if (filter === 'all' || filter === status) {
+                card.style.display = '';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('visibleCount').textContent = visibleCount;
+    }
+    
+    // Open edit modal with shift data
+    function openEditModal(id, name, code, startTime, endTime, description) {
+        document.getElementById('editShiftId').value = id;
+        document.getElementById('editShiftName').value = name;
+        document.getElementById('editShiftCode').value = code || '';
+        document.getElementById('editStartTime').value = startTime;
+        document.getElementById('editEndTime').value = endTime;
+        document.getElementById('editDescription').value = description || '';
+        
+        // Update the time preview
+        updateTimePreview('edit');
+        
+        dtUtils.openModal('editModal');
+    }
+    
+    // Delete (deactivate) shift
+    function deleteShift(id, name) {
+        if (confirm(`Are you sure you want to deactivate "${name}"?`)) {
+            fetch(`/admin/shifts/delete/${id}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                dtUtils.showAlert(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                dtUtils.showAlert('Error deactivating shift', 'error');
+            });
+        }
+    }
+    
+    // Reactivate shift
+    function reactivateShift(id, name) {
+        if (confirm(`Are you sure you want to reactivate "${name}"?`)) {
+            fetch(`/admin/shifts/reactivate/${id}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                dtUtils.showAlert(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                dtUtils.showAlert('Error reactivating shift', 'error');
+            });
+        }
+    }
+    
+    // Update time preview
+    function updateTimePreview(mode) {
+        let startInput, endInput, previewDiv, startDisplay, endDisplay, durationDisplay;
+        
+        if (mode === 'add') {
+            startInput = document.getElementById('start_time');
+            endInput = document.getElementById('end_time');
+            previewDiv = document.getElementById('addTimePreview');
+            startDisplay = document.getElementById('addPreviewStart');
+            endDisplay = document.getElementById('addPreviewEnd');
+            durationDisplay = document.getElementById('addPreviewDuration');
+        } else {
+            startInput = document.getElementById('editStartTime');
+            endInput = document.getElementById('editEndTime');
+            previewDiv = document.getElementById('editTimePreview');
+            startDisplay = document.getElementById('editPreviewStart');
+            endDisplay = document.getElementById('editPreviewEnd');
+            durationDisplay = document.getElementById('editPreviewDuration');
+        }
+        
+        if (startInput.value && endInput.value) {
+            // Show the preview
+            previewDiv.style.display = 'flex';
+            
+            // Update displayed times
+            startDisplay.textContent = startInput.value;
+            endDisplay.textContent = endInput.value;
+            
+            // Calculate duration
+            const start = new Date(`2000-01-01 ${startInput.value}`);
+            const end = new Date(`2000-01-01 ${endInput.value}`);
+            
+            let duration;
+            if (end < start) {
+                // Overnight shift
+                duration = (24 - start.getHours() + end.getHours());
+                durationDisplay.textContent = `${duration} hrs (overnight)`;
+                durationDisplay.style.color = 'var(--accent-purple)';
+            } else {
+                duration = (end - start) / (1000 * 60 * 60);
+                durationDisplay.textContent = `${duration.toFixed(1)} hrs`;
+                durationDisplay.style.color = 'var(--accent-blue)';
+            }
+        } else {
+            previewDiv.style.display = 'none';
+        }
+    }
+    
+    // Form submissions
+    document.getElementById('addForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        dtUtils.submitForm('addForm', '/admin/shifts/add', 
+            () => {
+                dtUtils.closeModal('addModal');
+                setTimeout(() => location.reload(), 1000);
+            },
+            (error) => {
+                console.error('Error adding shift:', error);
+            }
+        );
+    });
+    
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const shiftId = document.getElementById('editShiftId').value;
+        dtUtils.submitForm('editForm', `/admin/shifts/edit/${shiftId}`, 
+            () => {
+                dtUtils.closeModal('editModal');
+                setTimeout(() => location.reload(), 1000);
+            },
+            (error) => {
+                console.error('Error updating shift:', error);
+            }
+        );
+    });
+    
+    // Clear form when opening add modal
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add event listener for when add modal is opened
+        const addBtn = document.querySelector('[onclick*="openModal(\'addModal\')"]');
+        if (addBtn) {
+            addBtn.addEventListener('click', function() {
+                document.getElementById('addForm').reset();
+                document.getElementById('addTimePreview').style.display = 'none';
+            });
+        }
+        
+        // Initial filter
+        filterShifts();
+    });
+</script>
+{% endblock %}

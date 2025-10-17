@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Facilities Management - Downtime Tracker{% endblock %}
+
+{% block navbar_title %}🏭 Facilities Management{% endblock %}
+
+{% block nav_links %}
+<a href="/admin">Admin Panel</a>
+<a href="/admin/audit-log">Audit Log</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/logout">Logout</a>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    /* Page-specific styles only */
+    .history-modal-content {
+        background: var(--bg-secondary);
+        margin: 3% auto;
+        padding: 0;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 800px;
+        position: relative;
+        animation: modalSlideIn 0.3s ease-out;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--border-primary);
+    }
+    
+    .history-header {
+        background: var(--gradient-primary);
+        color: white;
+        padding: 20px 30px;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .history-header h2 {
+        margin: 0;
+        font-size: 24px;
+        color: white;
+    }
+    
+    .history-body {
+        padding: 30px;
+        overflow-y: auto;
+        flex-grow: 1;
+        color: var(--text-primary);
+    }
+    
+    .no-history {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-tertiary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Facilities Management</h1>
+    <p>Manage manufacturing facilities and locations</p>
+</div>
+
+<div id="alerts"></div>
+
+<div class="actions-bar">
+    <div class="filter-section">
+        <div>
+            <span class="facility-count"><span id="visibleCount">{{ facilities|selectattr('is_active')|list|length }}</span></span> facilities
+        </div>
+        <select class="filter-select" id="statusFilter" onchange="filterFacilities()">
+            <option value="active">Active</option>
+            <option value="all">All</option>
+            <option value="inactive">Inactive</option>
+        </select>
+    </div>
+    <button class="btn btn-primary" onclick="dtUtils.openModal('addModal')">
+        + Add New Facility
+    </button>
+</div>
+
+<div class="data-table">
+    {% if facilities %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Facility Name</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Last Modified</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="facilitiesTableBody">
+            {% for facility in facilities %}
+            <tr data-status="{{ 'active' if facility.is_active else 'inactive' }}">
+                <td><strong>{{ facility.facility_name }}</strong></td>
+                <td>{{ facility.location or '-' }}</td>
+                <td>
+                    {% if facility.is_active %}
+                    <span class="status-badge status-active">Active</span>
+                    {% else %}
+                    <span class="status-badge status-inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ facility.created_date.strftime('%Y-%m-%d') if facility.created_date else '-' }}
+                    {% if facility.created_by %}
+                    <br><small style="color: var(--text-tertiary);">by {{ facility.created_by }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ facility.modified_date.strftime('%Y-%m-%d') if facility.modified_date else '-' }}
+                    {% if facility.modified_by %}
+                    <br><small style="color: var(--text-tertiary);">by {{ facility.modified_by }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="actions">
+                        <button class="btn btn-info btn-sm" onclick="viewHistory({{ facility.facility_id }}, '{{ facility.facility_name }}')">
+                            📋 History
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="openEditModal({{ facility.facility_id }}, '{{ facility.facility_name }}', '{{ facility.location or '' }}')">
+                            ✏️ Edit
+                        </button>
+                        {% if facility.is_active %}
+                        <button class="btn btn-secondary btn-sm" onclick="dtUtils.deleteItem('/admin/facilities/delete/{{ facility.facility_id }}', '{{ facility.facility_name }}')">
+                            🚫 Deactivate
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🏭</div>
+        <h3>No facilities configured</h3>
+        <p>Get started by adding your first manufacturing facility</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Facility Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="dtUtils.closeModal('addModal')">&times;</span>
+        <h2>Add New Facility</h2>
+        <form id="addForm">
+            <div class="form-group">
+                <label for="name">Facility Name *</label>
+                <input type="text" id="name" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="location">Location</label>
+                <input type="text" id="location" name="location" class="form-control" placeholder="e.g., Building A, Floor 2">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="dtUtils.closeModal('addModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Facility</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Facility Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="dtUtils.closeModal('editModal')">&times;</span>
+        <h2>Edit Facility</h2>
+        <form id="editForm">
+            <input type="hidden" id="editId" name="facility_id">
+            <div class="form-group">
+                <label for="editName">Facility Name *</label>
+                <input type="text" id="editName" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="editLocation">Location</label>
+                <input type="text" id="editLocation" name="location" class="form-control" placeholder="e.g., Building A, Floor 2">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="dtUtils.closeModal('editModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Facility</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="modal">
+    <div class="history-modal-content">
+        <div class="history-header">
+            <span class="close" onclick="dtUtils.closeModal('historyModal')" style="color: white;">&times;</span>
+            <h2 id="historyTitle">Change History</h2>
+        </div>
+        <div class="history-body" id="historyContent">
+            <!-- Timeline will be inserted here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Page-specific JavaScript only
+    function filterFacilities() {
+        const filter = document.getElementById('statusFilter').value;
+        const filters = {
+            status: filter === 'all' ? '' : filter
+        };
+        
+        const visibleCount = dtUtils.filterTable('facilitiesTableBody', filters);
+        document.getElementById('visibleCount').textContent = visibleCount;
+    }
+    
+    function openEditModal(id, name, location) {
+        document.getElementById('editId').value = id;
+        document.getElementById('editName').value = name;
+        document.getElementById('editLocation').value = location || '';
+        dtUtils.openModal('editModal');
+        document.getElementById('editName').focus();
+    }
+    
+    function viewHistory(facilityId, facilityName) {
+        document.getElementById('historyTitle').textContent = `Change History: ${facilityName}`;
+        dtUtils.openModal('historyModal');
+        dtUtils.showLoading('historyContent');
+        
+        fetch(`/admin/facilities/history/${facilityId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.history) {
+                    displayHistory(data.history);
+                } else {
+                    dtUtils.hideLoading('historyContent', '<div class="no-history">No change history available.</div>');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading history:', error);
+                dtUtils.hideLoading('historyContent', '<div class="no-history">Error loading history.</div>');
+            });
+    }
+    
+    function displayHistory(history) {
+        if (!history || history.length === 0) {
+            dtUtils.hideLoading('historyContent', '<div class="no-history">No change history available.</div>');
+            return;
+        }
+        
+        let html = '<div class="timeline">';
+        history.forEach(item => {
+            const date = new Date(item.changed_date);
+            html += `
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-date">${dtUtils.formatDateTime(item.changed_date)}</div>
+                        <div class="timeline-action">
+                            ${item.action_description || item.action_type} by ${item.changed_by}
+                        </div>
+                        ${item.field_name ? `
+                            <div class="change-detail">
+                                <strong>${item.field_name}:</strong><br>
+                                <span class="old-value">${item.old_value || '(empty)'}</span> → 
+                                <span class="new-value">${item.new_value || '(empty)'}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        dtUtils.hideLoading('historyContent', html);
+    }
+    
+    // Form submissions
+    document.getElementById('addForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        dtUtils.submitForm('addForm', '/admin/facilities/add', 
+            () => setTimeout(() => location.reload(), 1000)
+        );
+    });
+    
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const facilityId = document.getElementById('editId').value;
+        dtUtils.submitForm('editForm', `/admin/facilities/edit/${facilityId}`, 
+            () => setTimeout(() => location.reload(), 1000)
+        );
+    });
+    
+    // Initialize filter on page load
+    window.addEventListener('DOMContentLoaded', function() {
+        filterFacilities();
+    });
+</script>
+{% endblock %}

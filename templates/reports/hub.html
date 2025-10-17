@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Downtime Tracker{% endblock %}
+
+{% block navbar_title %}📈 Reports{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Reports Hub</h1>
+    <p>Select a report to view system analytics</p>
+</div>
+
+<div class="admin-grid">
+    <a href="{{ url_for('reports.downtime_summary') }}" class="admin-card">
+        <div class="admin-icon">📊</div>
+        <div class="admin-title">Downtime Summary</div>
+        <div class="admin-desc">Analyze downtime duration by category and production line.</div>
+    </a>
+    
+    <a href="{{ url_for('reports.shipment_forecast') }}" class="admin-card">
+        <div class="admin-icon">🔮</div>
+        <div class="admin-title">Shipment Forecast</div>
+        <div class="admin-desc">Automated monthly shipment forecast based on MRP data.</div>
+    </a>
+
+    <a href="#" class="admin-card disabled">
+        <div class="admin-icon">🏭</div>
+        <div class="admin-title">Production Efficiency (Coming Soon)</div>
+        <div class="admin-desc">Report on overall equipment effectiveness (OEE).</div>
+    </a>
+
+    <a href="#" class="admin-card disabled">
+        <div class="admin-icon">📦</div>
+        <div class="admin-title">Downtime by ERP Job (Coming Soon)</div>
+        <div class="admin-desc">Analyze downtime associated with specific jobs and parts.</div>
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Order Viewer{% endblock %}
+
+{% block navbar_title %}📦 Purchase Orders{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    .container {
+        max-width: 98vw;
+    }
+    .search-bar {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        border: 2px solid var(--input-border);
+        border-radius: 8px;
+        background: var(--input-bg);
+        transition: all 0.3s ease;
+    }
+    .search-bar:focus-within {
+        border-color: var(--input-focus-border);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .search-icon {
+        color: var(--text-tertiary);
+        font-size: 20px;
+        padding-left: 15px;
+        padding-right: 10px;
+        pointer-events: none;
+    }
+    .search-input {
+        width: 100%;
+        flex-grow: 1;
+        padding: 12px 16px 12px 0;
+        border: none;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 14px;
+    }
+    .search-input:focus {
+        outline: none;
+        box-shadow: none;
+    }
+    .data-table {
+        max-height: 80vh;
+        overflow: auto;
+    }
+    .export-btn {
+        margin-right: 10px;
+        white-space: nowrap;
+    }
+    .grid-footer {
+        padding: 10px;
+        text-align: right;
+        font-size: 14px;
+        color: var(--text-tertiary);
+        font-weight: 500;
+        background: var(--bg-secondary);
+        border-radius: 0 0 10px 10px;
+        border: 1px solid var(--border-primary);
+        border-top: none;
+        margin-top: -1px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Purchase Order (PO) Viewer</h1>
+    <p>Search and view all active purchase orders from the ERP system.</p>
+</div>
+
+<div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="search-input" id="poSearch" 
+           placeholder="Search by PO Number, Part Number, Description, or Vendor...">
+    <button class="btn btn-secondary export-btn" id="exportBtn">
+        📥 Download XLSX
+    </button>
+</div>
+
+<div class="data-table">
+    {% if purchase_orders %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>PO Number</th>
+                <th>Part Number</th>
+                <th>Part Description</th>
+                <th>Vendor</th>
+                <th>Ordered Qty</th>
+                <th>Received Qty</th>
+                <th>Open Qty</th>
+                <th>Promise Date</th>
+                <th>Due Date</th>
+                <th>Line Status</th>
+                <th>MRP Status</th>
+            </tr>
+        </thead>
+        <tbody id="poTableBody">
+            {% for row in purchase_orders %}
+            <tr>
+                <td><strong>{{ row['PO Number'] }}</strong></td>
+                <td>{{ row['Part Number'] }}</td>
+                <td>{{ row['Part Description'] }}</td>
+                <td>{{ row['Vendor Description'] }}</td>
+                <td>{{ "%.2f"|format((row['Ordered Quantity']|float) or 0) }}</td>
+                <td>{{ "%.2f"|format((row['Received Quantity']|float) or 0) }}</td>
+                <td><strong>{{ "%.2f"|format((row['Open Quantity']|float) or 0) }}</strong></td>
+                <td>{{ row['Promise Date'].strftime('%Y-%m-%d') if row['Promise Date'] else '-' }}</td>
+                <td>{{ row['Due Date'].strftime('%Y-%m-%d') if row['Due Date'] else '-' }}</td>
+                <td>{{ row['Line Status'] }}</td>
+                <td>{{ row['MRP Status'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📦</div>
+        <h3>No Purchase Order data found</h3>
+        <p>Could not retrieve PO information from the ERP.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="grid-footer" id="gridFooter">
+    <span id="rowCount"></span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/po.js') }}"></script>
+{% endblock %}

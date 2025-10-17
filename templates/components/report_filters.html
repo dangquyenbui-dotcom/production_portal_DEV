@@ -1,0 +1,92 @@
+<style>
+    .filters-card {
+        background: var(--bg-secondary);
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+    }
+    .filters-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        align-items: end;
+    }
+</style>
+
+<div class="filters-card">
+    <form method="GET" action="" class="filters-form" id="reportFilterForm">
+        <div class="form-group">
+            <label for="start_date">Start Date</label>
+            <input type="date" id="start_date" name="start_date" class="form-control" value="{{ filters.start_date }}">
+        </div>
+        <div class="form-group">
+            <label for="end_date">End Date</label>
+            <input type="date" id="end_date" name="end_date" class="form-control" value="{{ filters.end_date }}">
+        </div>
+        <div class="form-group">
+            <label for="facility_id">Facility</label>
+            <select id="facility_id" name="facility_id" class="form-select">
+                <option value="">All Facilities</option>
+                {% for facility in facilities %}
+                <option value="{{ facility.facility_id }}" {% if filters.facility_id == facility.facility_id %}selected{% endif %}>
+                    {{ facility.facility_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="line_id">Production Line</label>
+            <select id="line_id" name="line_id" class="form-select" {% if not filters.facility_id %}disabled{% endif %}>
+                <option value="">All Lines</option>
+                </select>
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Generate Report</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const facilitySelect = document.getElementById('facility_id');
+    const lineSelect = document.getElementById('line_id');
+    const selectedLine = "{{ filters.line_id or '' }}";
+
+    function fetchLines(facilityId) {
+        if (!facilityId) {
+            lineSelect.innerHTML = '<option value="">All Lines</option>';
+            lineSelect.disabled = true;
+            return;
+        }
+
+        fetch(`/downtime/api/lines/${facilityId}`)
+            .then(response => response.json())
+            .then(data => {
+                lineSelect.innerHTML = '<option value="">All Lines</option>';
+                if (data.success && data.lines) {
+                    data.lines.forEach(line => {
+                        const option = document.createElement('option');
+                        option.value = line.id;
+                        option.textContent = line.name;
+                        if (line.id == selectedLine) {
+                            option.selected = true;
+                        }
+                        lineSelect.appendChild(option);
+                    });
+                }
+                lineSelect.disabled = false;
+            });
+    }
+
+    facilitySelect.addEventListener('change', function() {
+        fetchLines(this.value);
+    });
+
+    // Initial load if a facility is pre-selected
+    if (facilitySelect.value) {
+        fetchLines(facilitySelect.value);
+    }
+});
+</script>

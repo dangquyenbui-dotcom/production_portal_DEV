@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Analysis{% endblock %}
+{% block navbar_title %}र्ں Customer Analysis{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Customer Analysis Dashboard</h1>
+    <p>A comprehensive overview of customer performance, bookings, and shipments.</p>
+</div>
+
+<div class="controls-bar">
+    <form id="customer-form" method="GET" class="filter-group">
+        <label for="customerFilter">Select Customer:</label>
+        <select id="customerFilter" name="customer" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Select a Customer --</option>
+            {% for customer in customers %}
+                <option value="{{ customer }}" {% if customer == selected_customer %}selected{% endif %}>{{ customer }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+{% if selected_customer and analysis_data %}
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number blue">${{ "{:,.0f}".format(analysis_data.kpis.ytd_sales) }}</div>
+            <div class="stat-label">YTD Sales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number green">${{ "{:,.0f}".format(analysis_data.kpis.open_order_value) }}</div>
+            <div class="stat-label">Open Order Value</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number orange">{{ analysis_data.kpis.total_open_orders }}</div>
+            <div class="stat-label">Open Orders</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number purple">${{ "{:,.0f}".format(analysis_data.kpis.avg_order_value) }}</div>
+            <div class="stat-label">Avg. Open Order Value</div>
+        </div>
+    </div>
+
+    <div class="report-grid">
+        <div class="chart-container">
+            <h3>YTD Sales Trend</h3>
+            <canvas id="salesTrendChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h3>Top 5 Products (by Open Order Value)</h3>
+            <canvas id="topProductsChart"></canvas>
+        </div>
+    </div>
+
+    <div class="report-grid">
+        <div class="data-table">
+            <h3>Recent Shipments</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>SO Number</th>
+                        <th>Ship Date</th>
+                        <th class="numeric">Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shipment in analysis_data.recent_shipments %}
+                    <tr>
+                        <td>{{ shipment.so }}</td>
+                        <td>{{ shipment.ship_date }}</td>
+                        <td class="numeric">${{ "{:,.0f}".format(shipment.value) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="data-table">
+            <h3>Open Orders</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>SO Number</th>
+                        <th>Part</th>
+                        <th class="numeric">Net Qty</th>
+                        <th class="numeric">Value</th>
+                        <th>Due Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in analysis_data.open_orders %}
+                    <tr>
+                        <td>{{ order['SO'] }}</td>
+                        <td>{{ order['Part'] }}</td>
+                        <td class="numeric">{{ "{:,.0f}".format(order['Net Qty']) }}</td>
+                        <td class="numeric">${{ "{:,.0f}".format(order['Ext $ (Net Qty x Price)']) }}</td>
+                        <td>{{ order['Due to Ship'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% elif selected_customer %}
+    <div class="empty-state">
+        <h3>No Data Found</h3>
+        <p>Could not retrieve analysis for {{ selected_customer }}. They may not have any open orders.</p>
+    </div>
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">рџ‘†</div>
+        <h3>Select a Customer</h3>
+        <p>Choose a customer from the dropdown to begin analysis.</p>
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/sales.js') }}"></script>
+
+{% if analysis_data %}
+<script>
+    // Pass data to the external JS file
+    const salesTrendData = {{ analysis_data.sales_trend | tojson }};
+    const topProductsData = {{ analysis_data.top_products | tojson }};
+</script>
+{% endif %}
+
+{% endblock %}

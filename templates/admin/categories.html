@@ -1,0 +1,768 @@
+{% extends "base.html" %}
+
+{% block title %}Downtime Categories - Admin Panel{% endblock %}
+
+{% block navbar_title %}📊 Downtime Categories{% endblock %}
+
+{% block nav_links %}
+<a href="/admin">Admin Panel</a>
+<a href="/admin/audit-log">Audit Log</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/logout">Logout</a>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    /* Page-specific styles for categories */
+    .legend-box {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .legend-title {
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 10px;
+    }
+    
+    .legend-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--text-tertiary);
+    }
+    
+    .categories-container {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+        border: 1px solid var(--border-primary);
+    }
+    
+    .category-group {
+        border-bottom: 2px solid var(--border-primary);
+    }
+    
+    .category-group:last-child {
+        border-bottom: none;
+    }
+    
+    .category-group.filtered-out {
+        display: none;
+    }
+    
+    .main-category {
+        background: var(--bg-tertiary);
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .main-category:hover {
+        background: var(--bg-hover);
+    }
+    
+    .main-category.expanded {
+        background: var(--gradient-subtle);
+    }
+    
+    .category-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex: 1;
+    }
+    
+    .category-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        flex: 1;
+    }
+    
+    .sub-category .category-name {
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .category-code {
+        background: var(--text-primary);
+        color: var(--bg-secondary);
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 14px;
+        min-width: 50px;
+        text-align: center;
+    }
+    
+    .category-code.subcategory-code {
+        background: var(--text-tertiary);
+    }
+    
+    .category-color {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        background-color: #667eea; /* default color */
+    }
+    
+    .expand-icon {
+        color: var(--text-tertiary);
+        font-size: 20px;
+        transition: transform 0.2s;
+        width: 20px;
+        display: inline-block;
+    }
+    
+    .expand-icon.expanded {
+        transform: rotate(90deg);
+    }
+    
+    .expand-icon.hidden {
+        visibility: hidden;
+    }
+    
+    .subcategories {
+        display: none;
+        background: var(--bg-secondary);
+    }
+    
+    .subcategories.show {
+        display: block;
+    }
+    
+    .sub-category {
+        padding: 15px 20px 15px 60px;
+        border-top: 1px solid var(--border-primary);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .sub-category:hover {
+        background: var(--bg-hover);
+    }
+    
+    .sub-category.filtered-out {
+        display: none;
+    }
+    
+    .category-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .color-input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .color-preview {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: 2px solid var(--border-primary);
+        background-color: #667eea; /* default color */
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    .notification-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .notification-badge.active {
+        background: var(--alert-success-bg);
+        color: var(--alert-success-text);
+    }
+    
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .sub-category {
+            padding-left: 40px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Downtime Categories Management</h1>
+    <p>Configure hierarchical downtime reason codes for tracking production issues</p>
+</div>
+
+<div id="alerts"></div>
+
+<!-- Legend Box -->
+<div class="legend-box">
+    <div class="legend-title">Category Structure</div>
+    <div class="legend-items">
+        <div class="legend-item">
+            <span class="category-code">XX</span>
+            Main Category Code
+        </div>
+        <div class="legend-item">
+            <span class="category-code subcategory-code">XX##</span>
+            Sub-Category Code
+        </div>
+        <div class="legend-item">
+            <span class="notification-badge active">NOTIFY</span>
+            Email notifications enabled
+        </div>
+        <div class="legend-item">
+            <span class="status-badge status-active">ACTIVE</span>
+            Category is active
+        </div>
+    </div>
+</div>
+
+<div class="actions-bar">
+    <div class="filter-section">
+        <div>
+            <span class="category-count"><span id="visibleCount">0</span></span> main categories
+        </div>
+        <select class="filter-select" id="statusFilter" onchange="filterCategories()">
+            <option value="active">Active</option>
+            <option value="all">All</option>
+            <option value="inactive">Inactive</option>
+        </select>
+    </div>
+    <button class="btn btn-primary" onclick="dtUtils.openModal('addModal')">
+        + Add New Category
+    </button>
+</div>
+
+<div class="categories-container">
+    {% if categories %}
+        {% for category in categories %}
+        <div class="category-group" data-status="{{ 'active' if category.is_active else 'inactive' }}" data-category-id="{{ category.category_id }}">
+            <div class="main-category" data-category-id="{{ category.category_id }}">
+                <div class="category-info">
+                    {% if category.subcategories and category.subcategories|length > 0 %}
+                    <span class="expand-icon" id="expand-{{ category.category_id }}">▶</span>
+                    {% else %}
+                    <span class="expand-icon hidden">▶</span>
+                    {% endif %}
+                    <span class="category-code">{{ category.category_code }}</span>
+                    <span class="category-name">{{ category.category_name }}</span>
+                    <div class="category-color" data-color="{{ category.color_code or '#667eea' }}"></div>
+                    {% if category.notification_required %}
+                    <span class="notification-badge active">NOTIFY</span>
+                    {% endif %}
+                    {% if category.is_active %}
+                    <span class="status-badge status-active">Active</span>
+                    {% else %}
+                    <span class="status-badge status-inactive">Inactive</span>
+                    {% endif %}
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-secondary btn-sm btn-edit"
+                            data-id="{{ category.category_id }}"
+                            data-name="{{ category.category_name }}"
+                            data-code="{{ category.category_code }}"
+                            data-description="{{ category.description or '' }}"
+                            data-color="{{ category.color_code or '#667eea' }}"
+                            data-notification="{{ 'true' if category.notification_required else 'false' }}">
+                        Edit
+                    </button>
+                    {% if category.is_active %}
+                    <button class="btn btn-secondary btn-sm btn-delete"
+                            data-id="{{ category.category_id }}"
+                            data-name="{{ category.category_name }}">
+                        Deactivate
+                    </button>
+                    {% else %}
+                    <button class="btn btn-info btn-sm btn-reactivate"
+                            data-id="{{ category.category_id }}"
+                            data-name="{{ category.category_name }}">
+                        Reactivate
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if category.subcategories %}
+            <div class="subcategories" id="subcategories-{{ category.category_id }}">
+                {% for sub in category.subcategories %}
+                <div class="sub-category" data-status="{{ 'active' if sub.is_active else 'inactive' }}" data-subcategory-id="{{ sub.category_id }}">
+                    <div class="category-info">
+                        <span class="category-code">{{ sub.category_code }}</span>
+                        <span class="category-name">{{ sub.category_name }}</span>
+                        <div class="category-color" data-color="{{ sub.color_code or category.color_code or '#667eea' }}"></div>
+                        {% if sub.notification_required %}
+                        <span class="notification-badge active">NOTIFY</span>
+                        {% endif %}
+                        {% if sub.is_active %}
+                        <span class="status-badge status-active">Active</span>
+                        {% else %}
+                        <span class="status-badge status-inactive">Inactive</span>
+                        {% endif %}
+                    </div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-sm btn-edit"
+                                data-id="{{ sub.category_id }}"
+                                data-name="{{ sub.category_name }}"
+                                data-code="{{ sub.category_code }}"
+                                data-description="{{ sub.description or '' }}"
+                                data-color="{{ sub.color_code or category.color_code or '#667eea' }}"
+                                data-notification="{{ 'true' if sub.notification_required else 'false' }}">
+                            Edit
+                        </button>
+                        {% if sub.is_active %}
+                        <button class="btn btn-secondary btn-sm btn-delete"
+                                data-id="{{ sub.category_id }}"
+                                data-name="{{ sub.category_name }}">
+                            Deactivate
+                        </button>
+                        {% else %}
+                        <button class="btn btn-info btn-sm btn-reactivate"
+                                data-id="{{ sub.category_id }}"
+                                data-name="{{ sub.category_name }}">
+                            Reactivate
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📊</div>
+        <h3>No categories configured</h3>
+        <p>Get started by creating your first downtime category</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Category Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="dtUtils.closeModal('addModal')">&times;</span>
+        <h2>Add New Category</h2>
+        <form id="addForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="category_code">Category Code *</label>
+                    <input type="text" id="category_code" name="category_code" class="form-control" required 
+                           placeholder="e.g., EQ or EQ01" maxlength="4" style="text-transform: uppercase;">
+                    <small style="color: var(--text-tertiary); font-size: 12px;">2 letters for main, 4 chars for sub</small>
+                </div>
+                <div class="form-group">
+                    <label for="category_name">Category Name *</label>
+                    <input type="text" id="category_name" name="category_name" class="form-control" required 
+                           placeholder="e.g., Equipment Failure">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="parent_id">Parent Category</label>
+                <select id="parent_id" name="parent_id" class="form-select">
+                    <option value="">None (Main Category)</option>
+                    {% for category in categories if category.parent_id is none %}
+                    <option value="{{ category.category_id }}">{{ category.category_code }} - {{ category.category_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" class="form-control" rows="3" 
+                          placeholder="Optional description of when to use this category"></textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="color_code">Color Code</label>
+                    <div class="color-input-wrapper">
+                        <input type="color" id="color_code" name="color_code" value="#667eea">
+                        <div class="color-preview" id="colorPreview"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email Notifications</label>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="notification_required" name="notification_required">
+                        <label for="notification_required" style="margin: 0;">Send notifications</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="dtUtils.closeModal('addModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Category</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Category Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="dtUtils.closeModal('editModal')">&times;</span>
+        <h2>Edit Category</h2>
+        <form id="editForm">
+            <input type="hidden" id="editCategoryId" name="category_id">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Category Code</label>
+                    <input type="text" id="editCategoryCode" class="form-control" disabled 
+                           style="background: var(--bg-tertiary); cursor: not-allowed;">
+                    <small style="color: var(--text-tertiary); font-size: 12px;">Code cannot be changed</small>
+                </div>
+                <div class="form-group">
+                    <label for="editCategoryName">Category Name *</label>
+                    <input type="text" id="editCategoryName" name="category_name" class="form-control" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="editDescription">Description</label>
+                <textarea id="editDescription" name="description" class="form-control" rows="3"></textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="editColorCode">Color Code</label>
+                    <div class="color-input-wrapper">
+                        <input type="color" id="editColorCode" name="color_code" value="#667eea">
+                        <div class="color-preview" id="editColorPreview"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email Notifications</label>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="editNotificationRequired" name="notification_required">
+                        <label for="editNotificationRequired" style="margin: 0;">Send notifications</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="dtUtils.closeModal('editModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Category</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Track expanded state of categories
+    const expandedCategories = new Set();
+    
+    // Apply colors from data attributes
+    function applyColors() {
+        document.querySelectorAll('.category-color[data-color]').forEach(element => {
+            const color = element.getAttribute('data-color');
+            if (color) {
+                element.style.backgroundColor = color;
+            }
+        });
+    }
+    
+    // Initialize category count
+    function updateVisibleCount() {
+        const visibleGroups = document.querySelectorAll('.category-group:not(.filtered-out)');
+        document.getElementById('visibleCount').textContent = visibleGroups.length;
+    }
+    
+    // Filter categories by status
+    function filterCategories() {
+        const filter = document.getElementById('statusFilter').value;
+        const categoryGroups = document.querySelectorAll('.category-group');
+        
+        categoryGroups.forEach(group => {
+            const mainStatus = group.getAttribute('data-status');
+            const categoryId = group.getAttribute('data-category-id');
+            const subcategoriesContainer = group.querySelector('.subcategories');
+            const subcategories = group.querySelectorAll('.sub-category');
+            
+            // Check if main category matches filter
+            let mainMatches = filter === 'all' || filter === mainStatus;
+            
+            // Filter subcategories based on the current filter
+            let hasMatchingSubcategories = false;
+            subcategories.forEach(sub => {
+                const subStatus = sub.getAttribute('data-status');
+                const subMatches = filter === 'all' || filter === subStatus;
+                
+                if (subMatches) {
+                    sub.classList.remove('filtered-out');
+                    sub.style.display = ''; 
+                    hasMatchingSubcategories = true;
+                } else {
+                    sub.classList.add('filtered-out');
+                    sub.style.display = 'none';
+                }
+            });
+            
+            // Show the group if main matches OR has matching subcategories
+            if (mainMatches || hasMatchingSubcategories) {
+                group.classList.remove('filtered-out');
+                group.style.display = '';
+                
+                // If this category was expanded before, keep it expanded
+                if (expandedCategories.has(categoryId) && subcategoriesContainer && hasMatchingSubcategories) {
+                    subcategoriesContainer.classList.add('show');
+                    const expandIcon = document.getElementById('expand-' + categoryId);
+                    if (expandIcon) {
+                        expandIcon.classList.add('expanded');
+                    }
+                }
+            } else {
+                group.classList.add('filtered-out');
+                group.style.display = 'none';
+            }
+        });
+        
+        updateVisibleCount();
+    }
+    
+    // Toggle subcategories display
+    function toggleSubcategories(categoryId) {
+        const subcategoriesElement = document.getElementById('subcategories-' + categoryId);
+        const expandIcon = document.getElementById('expand-' + categoryId);
+        
+        // Only toggle if subcategories exist
+        if (subcategoriesElement) {
+            const isCurrentlyExpanded = subcategoriesElement.classList.contains('show');
+            
+            if (isCurrentlyExpanded) {
+                // Collapse
+                subcategoriesElement.classList.remove('show');
+                if (expandIcon) {
+                    expandIcon.classList.remove('expanded');
+                }
+                expandedCategories.delete(categoryId.toString());
+            } else {
+                // Expand
+                subcategoriesElement.classList.add('show');
+                if (expandIcon) {
+                    expandIcon.classList.add('expanded');
+                }
+                expandedCategories.add(categoryId.toString());
+            }
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply colors from data attributes
+        applyColors();
+        
+        // Set initial color preview
+        const colorInput = document.getElementById('color_code');
+        const colorPreview = document.getElementById('colorPreview');
+        if (colorInput && colorPreview) {
+            colorPreview.style.backgroundColor = colorInput.value;
+        }
+        
+        const editColorInput = document.getElementById('editColorCode');
+        const editColorPreview = document.getElementById('editColorPreview');
+        if (editColorInput && editColorPreview) {
+            editColorPreview.style.backgroundColor = editColorInput.value;
+        }
+        
+        // Update initial count
+        updateVisibleCount();
+        
+        // Apply the default filter on page load
+        filterCategories();
+        
+        // Add click handlers for main categories
+        document.querySelectorAll('.main-category').forEach(element => {
+            element.addEventListener('click', function(e) {
+                // Don't toggle if clicking on actions
+                if (!e.target.closest('.category-actions')) {
+                    const categoryId = this.getAttribute('data-category-id');
+                    if (categoryId) {
+                        toggleSubcategories(categoryId);
+                    }
+                }
+            });
+        });
+        
+        // Add click handlers for edit buttons
+        document.querySelectorAll('.btn-edit').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                const code = this.getAttribute('data-code');
+                const description = this.getAttribute('data-description');
+                const color = this.getAttribute('data-color');
+                const notification = this.getAttribute('data-notification') === 'true';
+                
+                document.getElementById('editCategoryId').value = id;
+                document.getElementById('editCategoryName').value = name;
+                document.getElementById('editCategoryCode').value = code;
+                document.getElementById('editDescription').value = description || '';
+                document.getElementById('editColorCode').value = color;
+                document.getElementById('editColorPreview').style.backgroundColor = color;
+                document.getElementById('editNotificationRequired').checked = notification;
+                dtUtils.openModal('editModal');
+            });
+        });
+        
+        // Add click handlers for delete buttons
+        document.querySelectorAll('.btn-delete').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                
+                if (confirm('Are you sure you want to deactivate "' + name + '"? Subcategories must be deactivated first.')) {
+                    fetch('/admin/categories/delete/' + id, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        dtUtils.showAlert(data.message, data.success ? 'success' : 'error');
+                        if (data.success) {
+                            setTimeout(() => location.reload(), 1000);
+                        }
+                    })
+                    .catch(error => {
+                        dtUtils.showAlert('Error deactivating category', 'error');
+                    });
+                }
+            });
+        });
+        
+        // Add click handlers for reactivate buttons
+        document.querySelectorAll('.btn-reactivate').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                
+                if (confirm('Are you sure you want to reactivate "' + name + '"?')) {
+                    fetch('/admin/categories/reactivate/' + id, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        dtUtils.showAlert(data.message, data.success ? 'success' : 'error');
+                        if (data.success) {
+                            setTimeout(() => location.reload(), 1000);
+                        }
+                    })
+                    .catch(error => {
+                        dtUtils.showAlert('Error reactivating category', 'error');
+                    });
+                }
+            });
+        });
+        
+        // Color preview update
+        document.getElementById('color_code').addEventListener('input', function(e) {
+            document.getElementById('colorPreview').style.backgroundColor = e.target.value;
+        });
+        
+        document.getElementById('editColorCode').addEventListener('input', function(e) {
+            document.getElementById('editColorPreview').style.backgroundColor = e.target.value;
+        });
+        
+        // Auto-format category code to uppercase
+        document.getElementById('category_code').addEventListener('input', function(e) {
+            e.target.value = e.target.value.toUpperCase();
+        });
+        
+        // Form submissions
+        document.getElementById('addForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            formData.set('notification_required', 
+                document.getElementById('notification_required').checked ? 'true' : 'false');
+            
+            fetch('/admin/categories/add', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                dtUtils.showAlert(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    dtUtils.closeModal('addModal');
+                    this.reset();
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                dtUtils.showAlert('Error adding category', 'error');
+            });
+        });
+        
+        document.getElementById('editForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const categoryId = formData.get('category_id');
+            formData.set('notification_required', 
+                document.getElementById('editNotificationRequired').checked ? 'true' : 'false');
+            
+            fetch('/admin/categories/edit/' + categoryId, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                dtUtils.showAlert(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    dtUtils.closeModal('editModal');
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                dtUtils.showAlert('Error updating category', 'error');
+            });
+        });
+    });
+</script>
+{% endblock %}

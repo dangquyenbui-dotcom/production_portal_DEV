@@ -1,0 +1,108 @@
+<style>
+    .language-selector {
+        position: relative;
+        display: inline-block;
+        margin-right: 15px;
+    }
+    
+    .language-btn {
+        background: transparent;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    
+    .language-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .language-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 5px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        box-shadow: var(--shadow-lg);
+        z-index: 1000;
+        min-width: 150px;
+        overflow: hidden;
+    }
+    
+    .language-dropdown.show {
+        display: block;
+    }
+    
+    .language-dropdown .language-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: background 0.2s;
+        font-size: 14px;
+    }
+    
+    .language-dropdown .language-option:hover {
+        background: var(--bg-hover);
+    }
+    
+    .language-dropdown .language-option.active {
+        background: var(--gradient-subtle);
+        font-weight: 600;
+    }
+    
+    .language-flag {
+        font-size: 20px;
+    }
+</style>
+
+<div class="language-selector">
+    <button class="language-btn" onclick="toggleLanguageDropdown(event)">
+        {% set current_lang = get_locale() %}
+        {% set languages = get_languages() %}
+        {% for lang in languages %}
+            {% if lang.code == current_lang %}
+                <span class="language-flag">{{ lang.flag }}</span>
+                <span>{{ lang.name }}</span>
+            {% endif %}
+        {% endfor %}
+        <span>▼</span>
+    </button>
+    <div class="language-dropdown" id="languageDropdown">
+        {% for lang in languages %}
+        <a href="{{ url_for('main.switch_language', language=lang.code) }}" 
+           class="language-option {% if lang.code == current_lang %}active{% endif %}">
+            <span class="language-flag">{{ lang.flag }}</span>
+            <span>{{ lang.name }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function toggleLanguageDropdown(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('languageDropdown');
+    dropdown.classList.toggle('show');
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function closeDropdown(e) {
+        if (!dropdown.contains(e.target)) {
+            dropdown.classList.remove('show');
+            document.removeEventListener('click', closeDropdown);
+        }
+    });
+}
+</script>

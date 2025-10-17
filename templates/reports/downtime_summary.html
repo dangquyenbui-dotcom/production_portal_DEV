@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Downtime Summary Report{% endblock %}
+
+{% block navbar_title %}📈 Downtime Summary{% endblock %}
+
+{% block nav_links %}
+<a href="{{ url_for('reports.hub') }}">All Reports</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/logout">Logout</a>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    .report-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .chart-container {
+        background: var(--bg-secondary);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+    }
+    .chart-container h3 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: var(--text-primary);
+    }
+    @media (max-width: 900px) {
+        .report-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Downtime Summary Report</h1>
+    <p>Analysis of downtime events within the selected period.</p>
+</div>
+
+{% include 'components/report_filters.html' %}
+
+<div class="stats-grid" style="margin-bottom: 20px;">
+    <div class="stat-card">
+        <div class="stat-number blue">{{ report_data.overall_stats.total_minutes | int }}</div>
+        <div class="stat-label">Total Minutes Down</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number green">{{ report_data.overall_stats.total_events }}</div>
+        <div class="stat-label">Total Events</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number orange">{{ report_data.overall_stats.avg_duration }}</div>
+        <div class="stat-label">Avg. Duration (min)</div>
+    </div>
+</div>
+
+<div class="report-grid">
+    <div class="chart-container">
+        <h3>Downtime by Category (Minutes)</h3>
+        <canvas id="categoryChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Downtime by Line (Minutes)</h3>
+        <canvas id="lineChart"></canvas>
+    </div>
+</div>
+
+<div class="data-table">
+    <h3>Recent Downtime Events (Max 250)</h3>
+    {% if report_data.raw_data %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Start Time</th>
+                <th>Duration (min)</th>
+                <th>Facility</th>
+                <th>Line</th>
+                <th>Category</th>
+                <th>Entered By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in report_data.raw_data %}
+            <tr>
+                <td>{{ row.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ row.duration_minutes }}</td>
+                <td>{{ row.facility_name }}</td>
+                <td>{{ row.line_name }}</td>
+                <td>{{ row.category_name }}</td>
+                <td>{{ row.entered_by }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No downtime data found for the selected filters.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Data passed from Flask
+    const categoryData = {{ report_data.by_category | tojson }};
+    const lineData = {{ report_data.by_line | tojson }};
+
+    // Chart.js global settings for theme
+    const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textColor = isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)';
+    Chart.defaults.color = textColor;
+    Chart.defaults.borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)';
+
+    // 1. Downtime by Category Chart (Doughnut)
+    if (categoryData && categoryData.length > 0) {
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categoryData.map(item => item.category_name),
+                datasets: [{
+                    label: 'Minutes Down',
+                    data: categoryData.map(item => item.total_minutes),
+                    backgroundColor: categoryData.map(item => item.color_code || '#667eea'),
+                    borderColor: isDarkMode ? '#0a0a0a' : '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Downtime by Line Chart (Bar)
+    if (lineData && lineData.length > 0) {
+        const lineCtx = document.getElementById('lineChart').getContext('2d');
+        new Chart(lineCtx, {
+            type: 'bar',
+            data: {
+                labels: lineData.map(item => item.line_name),
+                datasets: [{
+                    label: 'Minutes Down',
+                    data: lineData.map(item => item.total_minutes),
+                    backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y', // Horizontal bar chart
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

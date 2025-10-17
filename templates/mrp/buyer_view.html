@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Purchasing Shortage Report{% endblock %}
+{% block navbar_title %}🛒 Purchasing Shortage Report{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    .container {
+        max-width: 98vw;
+    }
+    .controls-bar {
+        background: var(--bg-secondary);
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 20px;
+    }
+    .filters-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        flex-grow: 1;
+        align-items: center;
+    }
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .filter-group label {
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+    .filter-select { min-width: 160px; }
+
+    .data-table {
+        max-height: 80vh;
+        overflow: auto;
+    }
+
+    .grid-footer {
+        padding: 10px;
+        text-align: right;
+        font-size: 14px;
+        color: var(--text-tertiary);
+        font-weight: 500;
+        background: var(--bg-secondary);
+        border-radius: 0 0 10px 10px;
+        border: 1px solid var(--border-primary);
+        border-top: none;
+        margin-top: -1px;
+    }
+    .shortage-value {
+        color: var(--accent-red);
+        font-weight: bold;
+    }
+    .numeric { text-align: right; }
+
+    /* --- Sorting Styles --- */
+    .sortable {
+        cursor: pointer;
+        position: relative;
+        user-select: none;
+    }
+    .sortable:hover {
+        background-color: var(--bg-hover);
+    }
+    .sort-indicator {
+        display: inline-block;
+        margin-left: 5px;
+        color: var(--text-tertiary);
+        opacity: 0.5;
+        transition: opacity 0.2s;
+        width: 1em; /* Reserve space */
+    }
+    .sortable.sorted-asc .sort-indicator,
+    .sortable.sorted-desc .sort-indicator {
+        opacity: 1;
+        color: var(--accent-blue);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Purchasing Shortage Report</h1>
+    <p>A consolidated list of all components with a calculated shortfall from the MRP run. This view is designed to guide purchasing decisions.</p>
+</div>
+
+<div class="controls-bar">
+    <div class="filters-container">
+        <div class="filter-group">
+            <label for="urgencyFilter">Urgency:</label>
+            <select id="urgencyFilter" class="form-select filter-select">
+                <option value="0">Due Now</option>
+                <option value="7">Due within 7 days</option>
+                <option value="15" selected>Due within 15 days</option>
+                <option value="30">Due within 30 days</option>
+                <option value="60">Due within 60 days</option>
+                <option value="90">Due within 90 days</option>
+                <option value="all">All Open Orders</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="customerFilter">Customer:</label>
+            <select id="customerFilter" class="form-select filter-select">
+                <option value="">All Customers</option>
+                {# Customer options are populated dynamically by JavaScript #}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="shortageSearch">Search:</label>
+            <input type="text" class="form-control" id="shortageSearch" placeholder="Filter by Part, Description, or Customer...">
+        </div>
+        <button class="btn btn-secondary" id="resetBtn">Reset</button>
+    </div>
+    <button class="btn btn-secondary" id="exportBtn">
+        📥 Download XLSX
+    </button>
+</div>
+
+<div class="data-table">
+    {% if shortages %}
+    <table class="table">
+        <thead>
+            <tr style="white-space: nowrap;">
+                <th class="sortable" data-column-id="Part Number" data-type="string">Part Number<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Description" data-type="string">Description<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Customers" data-type="string">Customer(s)<span class="sort-indicator"></span></th>
+                <th class="numeric sortable" data-column-id="On Hand" data-type="numeric">On Hand<span class="sort-indicator"></span></th>
+                <th class="numeric sortable" data-column-id="Open PO Qty" data-type="numeric">Open PO Qty<span class="sort-indicator"></span></th>
+                <th class="numeric sortable" data-column-id="Total Shortfall" data-type="numeric">Total Shortfall<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Affected SOs" data-type="string">Affected Sales Orders<span class="sort-indicator"></span></th>
+                <th class="sortable" data-column-id="Due Ship" data-type="date">Due Ship<span class="sort-indicator"></span></th>
+            </tr>
+        </thead>
+        <tbody id="shortageTableBody">
+            {% for item in shortages %}
+            <tr data-part-number="{{ item.part_number }}"
+                data-customers="{{ item.affected_customers | join(',') }}"
+                data-due-dates="{{ item.affected_orders | map(attribute='due_date') | list | join(',') }}">
+                <td><strong>{{ item.part_number }}</strong></td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.affected_customers | join(', ') }}</td>
+                <td class="numeric">{{ "{:,.2f}".format(item.on_hand|float) }}</td>
+                <td class="numeric">{{ "{:,.2f}".format(item.open_po_qty|float) }}</td>
+                <td class="numeric shortage-value">{{ "{:,.2f}".format(item.total_shortfall|float) }}</td>
+                <td>{{ item.affected_orders | map(attribute='so') | list | join(', ') }}</td>
+                <td>{{ item.earliest_due_date or 'N/A' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">✅</div>
+        <h3>No Component Shortages Found</h3>
+        <p>The MRP calculation did not find any material shortfalls for open sales orders.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="grid-footer" id="gridFooter">
+    <span id="rowCount"></span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/mrp_buyer.js') }}"></script>
+{% endblock %}

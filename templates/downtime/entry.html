@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Report Downtime') }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/downtime.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="downtime-header">
+        <div class="header-info">
+            <span class="header-label">{{ _('DATE/TIME') }}:</span>
+            <span class="header-value" id="current-datetime"></span>
+        </div>
+        <div class="header-info">
+            <span class="header-label">{{ _('SHIFT') }}:</span>
+            <span class="header-value">{{ current_shift.shift_name if current_shift else _('N/A') }}</span>
+        </div>
+        <div class="header-info">
+            <span class="header-label">{{ _('USER') }}:</span>
+            <span class="header-value">{{ user.display_name or user.username }}</span>
+        </div>
+    </div>
+
+    <h2 class="page-title">{{ _('Report Production Downtime') }}</h2>
+
+    <div id="alert-container"></div>
+
+    <form id="downtime-form" class="downtime-form">
+        <input type="hidden" id="downtime_id" name="downtime_id" value="">
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="facility_id" class="form-label">
+                    {{ _('Facility') }} *
+                </label>
+                <select id="facility_id" name="facility_id" class="form-select" required>
+                    <option value="">{{ _('Select Facility...') }}</option>
+                    {% for facility in facilities %}
+                    <option value="{{ facility.facility_id }}">{{ facility.facility_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="line_id" class="form-label">
+                    {{ _('Production Line') }} *
+                </label>
+                <select id="line_id" name="line_id" class="form-select" required disabled>
+                    <option value="">{{ _('Select Production Line...') }}</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group time-group">
+                <label class="form-label">
+                    {{ _('Time Range') }} *
+                </label>
+                <div class="time-inputs">
+                    <input type="datetime-local" id="start_time" name="start_time" class="form-control" required>
+                    <span class="time-separator">{{ _('to') }}</span>
+                    <input type="datetime-local" id="end_time" name="end_time" class="form-control" required>
+                </div>
+                <small class="form-text">{{ _('Auto-filled to last 30 minutes') }}</small>
+            </div>
+
+            <div class="form-group">
+                <label for="crew_size" class="form-label">
+                    {{ _('Associates (Crew)') }} *
+                </label>
+                <div class="crew-size-control">
+                    <button type="button" class="btn-crew-adjust" id="crew-decrease">-</button>
+                    <input type="number" id="crew_size" name="crew_size" class="form-control crew-input" 
+                           value="2" min="1" max="10" required>
+                    <button type="button" class="btn-crew-adjust" id="crew-increase">+</button>
+                    <span class="crew-range">(1-10)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="job_number" class="form-label">
+                    {{ _('Job Number') }}
+                    <span class="optional-badge">{{ _('Optional') }}</span>
+                </label>
+                <select id="job_number" name="job_number" class="form-select" disabled>
+                    <option value="">{{ _('Select a job...') }}</option>
+                </select>
+                <small id="job-loading" class="form-text" style="display: none; color: var(--accent-blue);">
+                    {{ _('Loading jobs from ERP...') }}
+                </small>
+                <small class="form-text">{{ _('Select facility and line first to load jobs') }}</small>
+            </div>
+
+            <div class="form-group">
+                <label for="shift_id" class="form-label">
+                    {{ _('Shift') }}
+                </label>
+                <select id="shift_id" name="shift_id" class="form-select">
+                    <option value="">{{ _('Auto-detect') }}</option>
+                    {% for shift in shifts %}
+                    <option value="{{ shift.shift_id }}" {% if current_shift and shift.shift_id == current_shift.shift_id %}selected{% endif %}>
+                        {{ shift.shift_name }} ({{ shift.start_time }} - {{ shift.end_time }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div id="job-details-card" class="job-details-card" style="display: none;">
+            <div class="job-card-header">
+                {{ _('Job Details') }}
+            </div>
+            <div class="job-card-grid">
+                <div class="job-detail-item">
+                    <div class="job-detail-label">{{ _('Job Number') }}</div>
+                    <div id="display-job-number" class="job-detail-value">-</div>
+                </div>
+                <div class="job-detail-item">
+                    <div class="job-detail-label">{{ _('Part Number') }}</div>
+                    <div id="display-part-number" class="job-detail-value">-</div>
+                </div>
+                <div class="job-detail-item">
+                    <div class="job-detail-label">{{ _('Part Description') }}</div>
+                    <div id="display-part-description" class="job-detail-value">-</div>
+                </div>
+                <div class="job-detail-item">
+                    <div class="job-detail-label">{{ _('Customer') }}</div>
+                    <div id="display-customer" class="job-detail-value">-</div>
+                </div>
+                <div class="job-detail-item">
+                    <div class="job-detail-label">{{ _('Business Unit') }}</div>
+                    <div id="display-business-unit" class="job-detail-value">-</div>
+                </div>
+                <div id="sales-order-section" class="job-detail-item" style="display: none;">
+                    <div class="job-detail-label">{{ _('Sales Order') }}</div>
+                    <div id="display-sales-order" class="job-detail-value">-</div>
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" id="erp_job_number" name="erp_job_number" value="">
+        <input type="hidden" id="erp_part_number" name="erp_part_number" value="">
+        <input type="hidden" id="erp_part_description" name="erp_part_description" value="">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="main_category" class="form-label">
+                    {{ _('Main Category') }} *
+                </label>
+                <select id="main_category" name="main_category" class="form-select" required>
+                    <option value="">{{ _('Select Main Category...') }}</option>
+                    {% for category in categories %}
+                    <option value="{{ category.category_id }}" 
+                            data-color="{{ category.color_code or '#667eea' }}">
+                        {{ category.category_code }} - {{ category.category_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="category_id" class="form-label">
+                    {{ _('Sub Category') }} *
+                </label>
+                <select id="category_id" name="category_id" class="form-select" required disabled>
+                    <option value="">{{ _('Select Main First...') }}</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="duration-display" id="duration-display" style="display: none;">
+            {{ _('Duration') }}: 
+            <span id="duration-value" class="duration-value">0 {{ _('minutes') }}</span>
+        </div>
+
+        <div class="form-group">
+            <label for="comments" class="form-label">
+                {{ _('Comments / Additional Information') }}
+            </label>
+            <textarea id="comments" name="comments" class="form-control" rows="3" 
+                      placeholder="{{ _('Enter any additional details about the downtime...') }}"></textarea>
+        </div>
+
+        <div class="quick-notes">
+            <div class="quick-notes-label">{{ _('Quick Notes') }}:</div>
+            <div class="quick-note-buttons">
+                <button type="button" class="btn-quick-note" data-note="{{ _('Parts') }}">{{ _('Parts') }}</button>
+                <button type="button" class="btn-quick-note" data-note="{{ _('Maintenance') }}">{{ _('Maintenance') }}</button>
+                <button type="button" class="btn-quick-note" data-note="{{ _('Quality') }}">{{ _('Quality') }}</button>
+                <button type="button" class="btn-quick-note" data-note="{{ _('Changeover') }}">{{ _('Changeover') }}</button>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-clear">
+                {{ _('Clear') }}
+            </button>
+            <button type="submit" class="btn btn-primary" id="btn-submit">
+                {{ _('Submit Downtime') }}
+            </button>
+        </div>
+    </form>
+
+    <div class="todays-entries" id="todays-entries" style="display: none;">
+        <h3 class="section-title">
+            {{ _("Today's Downtime Entries") }}
+        </h3>
+        <div id="entries-list" class="entries-list">
+            </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Pass data from Jinja2 to the external JavaScript file
+    const allCategories = {{ categories | tojson | safe }};
+    const pageLocale = '{{ get_locale() }}';
+    const translations = {
+        'Submitting': '{{ _("Submitting...") }}',
+        'Success': '{{ _("Success") }}',
+        'Error': '{{ _("Error") }}',
+        'minutes': '{{ _("minutes") }}',
+        'min': '{{ _("min") }}',
+        'DeleteConfirm': '{{ _("Are you sure you want to delete this entry?") }}',
+        'EntryDeleted': '{{ _("Entry deleted") }}',
+        'Edit': '{{ _("Edit") }}',
+        'Delete': '{{ _("Delete") }}',
+        'SubmitDowntime': '{{ _("Submit Downtime") }}',
+        'ErrorSubmitting': '{{ _("Error submitting downtime entry") }}',
+        'ErrorDeleting': '{{ _("Error deleting entry") }}',
+        'EditNotImplemented': '{{ _("Edit functionality - to be implemented") }}',
+        'SelectProductionLine': '{{ _("Select Production Line...") }}',
+        'SelectJob': '{{ _("Select a job...") }}',
+        'NoOpenJobs': '{{ _("No open jobs for this line") }}',
+        'ErrorLoadingJobs': '{{ _("Error loading jobs (optional)") }}',
+        'SelectSubCategory': '{{ _("Select Sub Category...") }}',
+        'SelectMainFirst': '{{ _("Select Main First...") }}',
+        'Crew': '{{ _("Crew") }}'
+    };
+</script>
+<script src="{{ url_for('static', filename='js/downtime.js') }}"></script>
+{% endblock %}

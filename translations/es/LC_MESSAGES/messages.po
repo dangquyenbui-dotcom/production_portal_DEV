@@ -1,0 +1,382 @@
+# Spanish translations for Downtime Tracker.
+# Copyright (C) 2024
+msgid ""
+msgstr ""
+"Project-Id-Version: Downtime Tracker 1.4.0\n"
+"Language: es\n"
+"Language-Team: Spanish\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# Application name
+msgid "Downtime Tracker"
+msgstr "Rastreador de Tiempo Muerto"
+
+# Login page
+msgid "Sign In"
+msgstr "Iniciar Sesión"
+
+msgid "Active Directory Authentication"
+msgstr "Autenticación de Active Directory"
+
+msgid "Domain"
+msgstr "Dominio"
+
+msgid "Username"
+msgstr "Usuario"
+
+msgid "Enter your username"
+msgstr "Ingrese su usuario"
+
+msgid "Password"
+msgstr "Contraseña"
+
+msgid "Enter your password"
+msgstr "Ingrese su contraseña"
+
+msgid "Access Requirements"
+msgstr "Requisitos de Acceso"
+
+msgid "You must be a member of"
+msgstr "Debe ser miembro de"
+
+msgid "Submit downtime"
+msgstr "Registrar tiempo muerto"
+
+msgid "Full access"
+msgstr "Acceso completo"
+
+# Session modal
+msgid "Active Session Detected"
+msgstr "Sesión Activa Detectada"
+
+msgid "You have an active session from another location"
+msgstr "Tiene una sesión activa desde otra ubicación"
+
+msgid "Last Activity"
+msgstr "Última Actividad"
+
+msgid "IP Address"
+msgstr "Dirección IP"
+
+msgid "Unknown"
+msgstr "Desconocido"
+
+msgid "Continuing will end your other session. Do you want to proceed?"
+msgstr "Continuar cerrará su otra sesión. ¿Desea continuar?"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Continue and Sign In"
+msgstr "Continuar e Iniciar Sesión"
+
+# Button states
+msgid "Authenticating..."
+msgstr "Autenticando..."
+
+msgid "Signing in..."
+msgstr "Iniciando sesión..."
+
+msgid "An error occurred. Please try again."
+msgstr "Ocurrió un error. Por favor intente de nuevo."
+
+# Flash messages
+msgid "Invalid credentials or access denied"
+msgstr "Credenciales inválidas o acceso denegado"
+
+msgid "Please enter both username and password"
+msgstr "Por favor ingrese usuario y contraseña"
+
+msgid "Session expired"
+msgstr "Su sesión ha expirado"
+
+msgid "You have been successfully logged out"
+msgstr "Ha cerrado sesión exitosamente"
+
+msgid "Admin privileges required"
+msgstr "Se requieren privilegios de administrador"
+
+msgid "Language changed successfully"
+msgstr "Idioma cambiado exitosamente"
+
+msgid "Invalid language selection"
+msgstr "Selección de idioma inválida"
+
+# Time expressions
+msgid "just now"
+msgstr "ahora mismo"
+
+msgid "1 minute ago"
+msgstr "hace 1 minuto"
+
+msgid "minutes ago"
+msgstr "minutos atrás"
+
+msgid "1 hour ago"
+msgstr "hace 1 hora"
+
+msgid "hours ago"
+msgstr "horas atrás"
+
+# Additional common terms
+msgid "Dashboard"
+msgstr "Panel de Control"
+
+msgid "Logout"
+msgstr "Cerrar Sesión"
+
+msgid "Login"
+msgstr "Iniciar Sesión"
+
+msgid "Test Mode"
+msgstr "Modo de Prueba"
+
+msgid "User"
+msgstr "Usuario"
+
+msgid "Admin"
+msgstr "Administrador"
+
+msgid "Use your AD credentials"
+msgstr "Use sus credenciales de AD"
+
+# Dashboard page
+msgid "Welcome"
+msgstr "Bienvenido"
+
+msgid "Username"
+msgstr "Usuario"
+
+msgid "Email"
+msgstr "Correo Electrónico"
+
+msgid "Access Level"
+msgstr "Nivel de Acceso"
+
+msgid "Downtime Entry Only"
+msgstr "Solo Registro de Tiempo Muerto"
+
+msgid "Full Administrative Access"
+msgstr "Acceso Administrativo Completo"
+
+msgid "AD Groups"
+msgstr "Grupos de AD"
+
+msgid "Active Facilities"
+msgstr "Instalaciones Activas"
+
+msgid "Production Lines"
+msgstr "Líneas de Producción"
+
+msgid "Downtime Events (7 days)"
+msgstr "Eventos de Tiempo Muerto (7 días)"
+
+msgid "Downtime Categories"
+msgstr "Categorías de Tiempo Muerto"
+
+msgid "Report Downtime"
+msgstr "Reportar Tiempo Muerto"
+
+msgid "Record production downtime events"
+msgstr "Registrar eventos de tiempo muerto de producción"
+
+msgid "View Reports"
+msgstr "Ver Reportes"
+
+msgid "View downtime reports and analytics"
+msgstr "Ver reportes y análisis de tiempo muerto"
+
+msgid "Manage facilities, lines, and settings"
+msgstr "Administrar instalaciones, líneas y configuraciones"
+
+msgid "Sign out of your account"
+msgstr "Cerrar sesión de su cuenta"
+
+msgid "Admin Panel"
+msgstr "Panel de Administración"
+
+msgid "System Administration"
+msgstr "Administración del Sistema"
+
+# Spanish translations for Downtime Tracker
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+# Downtime Entry Page
+msgid "Report Downtime"
+msgstr "Reportar Tiempo Muerto"
+
+msgid "Report Production Downtime"
+msgstr "Reportar Tiempo Muerto de Producción"
+
+msgid "DATE/TIME"
+msgstr "FECHA/HORA"
+
+msgid "SHIFT"
+msgstr "TURNO"
+
+msgid "USER"
+msgstr "USUARIO"
+
+msgid "N/A"
+msgstr "N/D"
+
+msgid "Facility"
+msgstr "Instalación"
+
+msgid "Select Facility..."
+msgstr "Seleccionar Instalación..."
+
+msgid "Production Line"
+msgstr "Línea de Producción"
+
+msgid "Select Production Line..."
+msgstr "Seleccionar Línea de Producción..."
+
+msgid "Time Range"
+msgstr "Rango de Tiempo"
+
+msgid "to"
+msgstr "a"
+
+msgid "Auto-filled to last 30 minutes"
+msgstr "Auto-completado a últimos 30 minutos"
+
+msgid "Associates (Crew)"
+msgstr "Asociados (Tripulación)"
+
+msgid "Job Number"
+msgstr "Número de Trabajo"
+
+msgid "Optional"
+msgstr "Opcional"
+
+msgid "Select a job..."
+msgstr "Seleccionar un trabajo..."
+
+msgid "Loading jobs from ERP..."
+msgstr "Cargando trabajos desde ERP..."
+
+msgid "Select facility and line first to load jobs"
+msgstr "Seleccione instalación y línea primero para cargar trabajos"
+
+msgid "No open jobs for this line"
+msgstr "No hay trabajos abiertos para esta línea"
+
+msgid "Error loading jobs (optional)"
+msgstr "Error al cargar trabajos (opcional)"
+
+msgid "Shift"
+msgstr "Turno"
+
+msgid "Auto-detect"
+msgstr "Auto-detectar"
+
+msgid "Job Details"
+msgstr "Detalles del Trabajo"
+
+msgid "Part Number"
+msgstr "Número de Parte"
+
+msgid "Part Description"
+msgstr "Descripción de Parte"
+
+msgid "Customer"
+msgstr "Cliente"
+
+msgid "Business Unit"
+msgstr "Unidad de Negocio"
+
+msgid "Sales Order"
+msgstr "Orden de Venta"
+
+msgid "Main Category"
+msgstr "Categoría Principal"
+
+msgid "Select Main Category..."
+msgstr "Seleccionar Categoría Principal..."
+
+msgid "Sub Category"
+msgstr "Sub-Categoría"
+
+msgid "Select Main First..."
+msgstr "Seleccionar Principal Primero..."
+
+msgid "Duration"
+msgstr "Duración"
+
+msgid "minutes"
+msgstr "minutos"
+
+msgid "min"
+msgstr "min"
+
+msgid "Comments / Additional Information"
+msgstr "Comentarios / Información Adicional"
+
+msgid "Enter any additional details about the downtime..."
+msgstr "Ingrese detalles adicionales sobre el tiempo muerto..."
+
+msgid "Quick Notes"
+msgstr "Notas Rápidas"
+
+msgid "Parts"
+msgstr "Partes"
+
+msgid "Maintenance"
+msgstr "Mantenimiento"
+
+msgid "Quality"
+msgstr "Calidad"
+
+msgid "Changeover"
+msgstr "Cambio"
+
+msgid "Clear"
+msgstr "Limpiar"
+
+msgid "Submit Downtime"
+msgstr "Enviar Tiempo Muerto"
+
+msgid "Today's Downtime Entries"
+msgstr "Entradas de Tiempo Muerto de Hoy"
+
+msgid "Crew"
+msgstr "Tripulación"
+
+msgid "Edit"
+msgstr "Editar"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Authenticating..."
+msgstr "Autenticando..."
+
+msgid "Submitting..."
+msgstr "Enviando..."
+
+msgid "Success"
+msgstr "Éxito"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Are you sure you want to delete this entry?"
+msgstr "¿Está seguro de que desea eliminar esta entrada?"
+
+msgid "Entry deleted"
+msgstr "Entrada eliminada"
+
+msgid "Error submitting downtime entry"
+msgstr "Error al enviar entrada de tiempo muerto"
+
+msgid "Error deleting entry"
+msgstr "Error al eliminar entrada"
+
+msgid "Edit functionality - to be implemented"
+msgstr "Funcionalidad de edición - por implementar"
