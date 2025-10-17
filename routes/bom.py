@@ -1,4 +1,4 @@
-# dangquyenbui-dotcom/downtime_tracker/downtime_tracker-953d9e6915ad7fa465db9a8f87b8a56d713b0537/routes/bom.py
+# routes/bom.py
 """
 Bill of Materials (BOM) Viewer routes.
 """
@@ -6,13 +6,14 @@ Bill of Materials (BOM) Viewer routes.
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, send_file
 from auth import require_login
 from routes.main import validate_session
-from database.erp_connection import get_erp_service
+# UPDATED IMPORT:
+from database import get_erp_service
 import openpyxl
 from io import BytesIO
 from datetime import datetime
 
 bom_bp = Blueprint('bom', __name__, url_prefix='/bom')
-erp_service = get_erp_service()
+erp_service = get_erp_service() # This now gets the refactored service instance
 
 @bom_bp.route('/')
 @validate_session
@@ -21,12 +22,10 @@ def view_boms():
     if not require_login(session):
         return redirect(url_for('main.login'))
 
-    # Allow filtering by a specific parent part number via query parameter
     parent_part_number = request.args.get('part_number', None)
-    
-    # Fetch all BOM data from the ERP
+
     try:
-        boms = erp_service.get_bom_data(parent_part_number)
+        boms = erp_service.get_bom_data(parent_part_number) # Call remains the same
     except Exception as e:
         flash(f'Error fetching BOM data from ERP: {e}', 'error')
         boms = []
@@ -53,24 +52,18 @@ def export_boms_xlsx():
         if not headers or not rows:
             return jsonify({'success': False, 'message': 'No data to export'}), 400
 
-        # Create a new workbook and select the active sheet
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "BOM Export"
-
-        # Write headers
         ws.append(headers)
-        
-        # Write data rows
+
         for row_data in rows:
             ws.append(row_data)
 
-        # Save the workbook to a BytesIO object
         output = BytesIO()
         wb.save(output)
         output.seek(0)
 
-        # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"bom_export_{timestamp}.xlsx"
 

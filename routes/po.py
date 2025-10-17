@@ -1,4 +1,4 @@
-# dangquyenbui-dotcom/production_portal_dev/production_portal_DEV-295c331ed3402285b3968a9eee927cfdf1c23943/routes/po.py
+# routes/po.py
 """
 Purchase Order (PO) Viewer routes.
 """
@@ -6,13 +6,14 @@ Purchase Order (PO) Viewer routes.
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, send_file
 from auth import require_login
 from routes.main import validate_session
-from database.erp_connection import get_erp_service
+# UPDATED IMPORT:
+from database import get_erp_service
 import openpyxl
 from io import BytesIO
 from datetime import datetime
 
 po_bp = Blueprint('po', __name__, url_prefix='/po')
-erp_service = get_erp_service()
+erp_service = get_erp_service() # This now gets the refactored service instance
 
 @po_bp.route('/')
 @validate_session
@@ -22,7 +23,7 @@ def view_pos():
         return redirect(url_for('main.login'))
 
     try:
-        purchase_orders = erp_service.get_detailed_purchase_order_data()
+        purchase_orders = erp_service.get_detailed_purchase_order_data() # Call remains the same
     except Exception as e:
         flash(f'Error fetching PO data from ERP: {e}', 'error')
         purchase_orders = []
@@ -52,7 +53,7 @@ def export_pos_xlsx():
         ws = wb.active
         ws.title = "PO Export"
         ws.append(headers)
-        
+
         for row_data in rows:
             ws.append(row_data)
 

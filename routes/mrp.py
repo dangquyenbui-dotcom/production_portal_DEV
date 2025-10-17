@@ -1,4 +1,4 @@
-# dangquyenbui-dotcom/downtime_tracker/downtime_tracker-5bb4163f1c166071f5c302dee6ed03e0344576eb/routes/mrp.py
+# routes/mrp.py
 """
 MRP (Material Requirements Planning) Viewer routes.
 """
@@ -6,6 +6,7 @@ MRP (Material Requirements Planning) Viewer routes.
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify, send_file
 from auth import require_login
 from routes.main import validate_session
+# Correctly imports the MRP service, which internally uses the ERP service
 from database.mrp_service import mrp_service
 import openpyxl
 from io import BytesIO
@@ -44,11 +45,11 @@ def customer_summary():
     try:
         mrp_results = mrp_service.calculate_mrp_suggestions()
         all_customers = sorted(list(set(r['sales_order']['Customer Name'] for r in mrp_results)))
-        
+
         selected_customer = request.args.get('customer')
         summary_data = None
         orders_for_template = []
-        
+
         if selected_customer:
             customer_orders = [r for r in mrp_results if r['sales_order']['Customer Name'] == selected_customer]
             summary_data = mrp_service.get_customer_summary(customer_orders)
@@ -62,7 +63,6 @@ def customer_summary():
         summary_data = None
         orders_for_template = []
 
-    # Get filter values from URL for the template
     filters = {
         'bu': request.args.get('bu'),
         'fg': request.args.get('fg'),
@@ -84,8 +84,7 @@ def customer_summary():
 @validate_session
 def buyer_view():
     """Renders a consolidated view of all component shortages for buyers."""
-    # This view is for purchasing, so we'll grant access to admins and scheduling personnel
-    if not (session.get('user', {}).get('is_admin') 
+    if not (session.get('user', {}).get('is_admin')
             or session.get('user', {}).get('is_scheduling_admin')
             or session.get('user', {}).get('is_scheduling_user')):
         flash('Purchasing access is required to view this page.', 'error')
@@ -111,11 +110,11 @@ def buyer_view():
 @validate_session
 def export_shortages_xlsx():
     """API endpoint to export the consolidated shortages data to an XLSX file."""
-    if not (session.get('user', {}).get('is_admin') 
+    if not (session.get('user', {}).get('is_admin')
             or session.get('user', {}).get('is_scheduling_admin')
             or session.get('user', {}).get('is_scheduling_user')):
         return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    
+
     try:
         data = request.get_json()
         headers = data.get('headers', [])
@@ -123,7 +122,7 @@ def export_shortages_xlsx():
 
         if not headers or not rows:
             return jsonify({'success': False, 'message': 'No data to export'}), 400
-        
+
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "MRP Shortage Report"
@@ -135,10 +134,10 @@ def export_shortages_xlsx():
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"mrp_shortage_report_{timestamp}.xlsx"
-        
+
         return send_file(
             output,
             as_attachment=True,
@@ -169,7 +168,7 @@ def export_mrp_xlsx():
         ws = wb.active
         ws.title = "MRP Export"
         ws.append(headers)
-        
+
         for row_data in rows:
             ws.append(row_data)
 
@@ -178,7 +177,7 @@ def export_mrp_xlsx():
         output.seek(0)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"po_export_{timestamp}.xlsx"
+        filename = f"mrp_export_{timestamp}.xlsx" # Corrected filename typo
 
         return send_file(
             output,

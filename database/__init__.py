@@ -1,10 +1,14 @@
-# dangquyenbui-dotcom/downtime_tracker/downtime_tracker-5bb4163f1c166071f5c302dee6ed03e0344576eb/database/__init__.py
+# database/__init__.py
 """
 Database package initialization
 Provides centralized access to all database modules
 """
 
 from .connection import DatabaseConnection, get_db
+# Remove ERP connection import from here
+# from .erp_connection_base import get_erp_db_connection # Keep if needed elsewhere, but service is preferred
+from .erp_service import get_erp_service # Import the main service getter
+
 from .facilities import FacilitiesDB
 from .production_lines import ProductionLinesDB
 from .categories import CategoriesDB
@@ -17,9 +21,9 @@ from .reports import reports_db
 from .scheduling import scheduling_db
 from .capacity import ProductionCapacityDB
 from .mrp_service import mrp_service
-from .sales_service import sales_service # <-- ADD THIS IMPORT
+from .sales_service import sales_service
 
-# Create singleton instances
+# Create singleton instances for local DB operations
 facilities_db = FacilitiesDB()
 lines_db = ProductionLinesDB()
 categories_db = CategoriesDB()
@@ -28,12 +32,13 @@ audit_db = AuditDB()
 shifts_db = ShiftsDB()
 users_db = UsersDB()
 sessions_db = SessionsDB()
-capacity_db = ProductionCapacityDB() 
+capacity_db = ProductionCapacityDB()
 
-# Export main database functions
+# Export main database functions and service getters
 __all__ = [
     'DatabaseConnection',
     'get_db',
+    'get_erp_service', # Export the service getter
     'facilities_db',
     'lines_db',
     'categories_db',
@@ -46,5 +51,5 @@ __all__ = [
     'scheduling_db',
     'capacity_db',
     'mrp_service',
-    'sales_service' # <-- ADD THIS
+    'sales_service'
 ]

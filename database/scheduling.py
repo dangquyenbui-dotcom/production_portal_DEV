@@ -1,9 +1,10 @@
+# database/scheduling.py
 """
 Database operations for the Production Scheduling module.
 """
 
 from .connection import get_db
-from .erp_connection import get_erp_service
+from database import get_erp_service
 from datetime import datetime
 
 class SchedulingDB:
@@ -45,7 +46,6 @@ class SchedulingDB:
         
         # Step 2: Get the on-hand inventory data from ERP for row-level display
         on_hand_data = self.erp_service.get_on_hand_inventory()
-        # Create a simple lookup map: { 'PartNumber': TotalOnHand }
         on_hand_map = {item['PartNumber']: item['TotalOnHand'] for item in on_hand_data}
 
         # Step 3: Get the user-saved projections from the local database
@@ -53,7 +53,6 @@ class SchedulingDB:
             local_projections_query = "SELECT so_number, part_number, can_make_no_risk, high_risk FROM ScheduleProjections"
             local_data = conn.execute_query(local_projections_query)
         
-        # Create a lookup map for user projections
         projections_map = { f"{row['so_number']}-{row['part_number']}": row for row in local_data }
 
         # --- Get the split FG On Hand values and labels ---
@@ -67,42 +66,37 @@ class SchedulingDB:
             key = f"{erp_row['SO']}-{erp_row['Part']}"
             projection = projections_map.get(key)
             
-            # Add On-Hand Quantity from the map for display in the grid
             on_hand_qty = on_hand_map.get(erp_row['Part'], 0) or 0
             erp_row['On hand Qty'] = on_hand_qty
 
-            # --- MODIFIED: 'Net Qty' CALCULATION ---
-            ord_qty_00_level = erp_row.get('Ord Qty - (00) Level', 0) or 0
-            produced_qty = erp_row.get('Produced Qty', 0) or 0
-            net_qty = ord_qty_00_level - produced_qty
-            erp_row['Net Qty'] = net_qty if net_qty > 0 else 0 # Ensure Net Qty is not negative
-
-            # Prioritize user-saved projections for editable fields
+            # --- ***** RESTORED "LIVE" LOGIC ***** ---
+            # Read the [Net Qty] calculated by the (now correct) SQL query
+            sql_net_qty = erp_row.get('Net Qty', 0) or 0
+            # Ensure it's not negative
+            erp_row['Net Qty'] = float(sql_net_qty) if float(sql_net_qty) > 0 else 0.0
+            # --- ***** END RESTORED LOGIC ***** ---
+            
             if projection:
                 erp_row['No/Low Risk Qty'] = projection.get('can_make_no_risk', 0)
                 erp_row['High Risk Qty'] = projection.get('high_risk', 0)
             else:
-                # Otherwise, use default values from ERP
                 no_risk_val = erp_row.get('Can Make - No Risk', 0) or 0
                 low_risk_val = erp_row.get('Low Risk', 0) or 0
                 erp_row['No/Low Risk Qty'] = no_risk_val + low_risk_val
                 erp_row['High Risk Qty'] = erp_row.get('High Risk', 0) or 0
             
-            # Recalculate financial columns
             price = erp_row.get('Unit Price', 0) or 0
-            erp_row['$ No/Low Risk Qty'] = (erp_row['No/Low Risk Qty'] or 0) * price
-            erp_row['$ High Risk'] = (erp_row['High Risk Qty'] or 0) * price
+            erp_row['$ No/Low Risk Qty'] = (float(erp_row['No/Low Risk Qty'] or 0)) * float(price)
+            erp_row['$ High Risk'] = (float(erp_row['High Risk Qty'] or 0)) * float(price)
             
-            # --- MODIFIED: Calculate 'Ext Qty' column ---
             try:
                 qty_per_uom = float(erp_row.get('Qty Per UoM')) if erp_row.get('Qty Per UoM') else 1.0
             except (ValueError, TypeError):
                 qty_per_uom = 1.0
             
-            # Ensure both operands are floats before multiplying to prevent TypeError
+            # This calculation now uses the correct 'Net Qty' from above
             erp_row['Ext Qty'] = float(erp_row.get('Net Qty') or 0.0) * qty_per_uom
         
-        # Combine grid data with all summary card values
         return {
             "grid_data": erp_data,
             "fg_on_hand_split": fg_on_hand_split,
