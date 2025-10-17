@@ -12,14 +12,29 @@ erp_service = get_erp_service()
 
 def _get_job_data(job_numbers):
     """Helper function to fetch and process job data."""
+    # --- MODIFICATION: Handle potentially large number of jobs ---
+    # Fetch details in chunks if necessary to avoid overly large IN clauses,
+    # though pyodbc handles parameterization well for many DBs.
+    # For simplicity here, assume the driver/DB handles a large list.
+    if not job_numbers:
+        return []
+    # --- END MODIFICATION ---
+
     job_details_raw = erp_service.get_open_job_details(job_numbers)
     relieve_job_raw = erp_service.get_relieve_job_data(job_numbers)
 
     jobs = {}
-    
+
     # Process dtfifo transactions
     for row in job_details_raw:
-        job_num = row['fi_postref'].replace('JJ-', '')
+        job_num_str = row['fi_postref']
+        # --- MODIFICATION: Robust job number extraction ---
+        job_num = job_num_str.replace('JJ-', '') if job_num_str and job_num_str.startswith('JJ-') else None
+        if not job_num:
+             print(f"Skipping transaction with unexpected fi_postref: {job_num_str}")
+             continue
+        # --- END MODIFICATION ---
+
         part_num = row['part_number']
         action = row['fi_action']
         quantity = row['fi_quant']
@@ -34,9 +49,9 @@ def _get_job_data(job_numbers):
                 'finish_job_transactions': [],
                 'aggregated_transactions': {}
             }
-        
+
         jobs[job_num]['transactions'].append(row)
-        
+
         if part_num not in jobs[job_num]['aggregated_transactions']:
             jobs[job_num]['aggregated_transactions'][part_num] = {
                 'part_number': part_num,
@@ -46,7 +61,7 @@ def _get_job_data(job_numbers):
                 'De-issue': 0,
                 'Relieve Job': 0
             }
-        
+
         if action in jobs[job_num]['aggregated_transactions'][part_num]:
             jobs[job_num]['aggregated_transactions'][part_num][action] += quantity
 
@@ -56,10 +71,17 @@ def _get_job_data(job_numbers):
             # Set the main part_number for the job based on the Finish Job transaction
             if not jobs[job_num]['part_number']:
                  jobs[job_num]['part_number'] = part_num
-    
+
     # Process dtfifo2 transactions for 'Relieve Job'
     for row in relieve_job_raw:
-        job_num = row['f2_postref'].replace('JJ-', '')
+        job_num_str = row['f2_postref']
+        # --- MODIFICATION: Robust job number extraction ---
+        job_num = job_num_str.replace('JJ-', '') if job_num_str and job_num_str.startswith('JJ-') else None
+        if not job_num:
+            print(f"Skipping relieve transaction with unexpected f2_postref: {job_num_str}")
+            continue
+        # --- END MODIFICATION ---
+
         part_num = row['part_number']
         part_desc = row.get('part_description', '') # Get description here
         action = row['f2_action']
@@ -69,12 +91,12 @@ def _get_job_data(job_numbers):
             jobs[job_num] = {
                 'job_number': job_num,
                 'completed_qty': 0,
-                'part_number': '', 
+                'part_number': '',
                 'transactions': [],
                 'finish_job_transactions': [],
                 'aggregated_transactions': {}
             }
-        
+
         consistent_transaction = {
             'fi_action': action,
             'fi_quant': quantity,
@@ -82,7 +104,7 @@ def _get_job_data(job_numbers):
             'part_description': part_desc
         }
         jobs[job_num]['transactions'].append(consistent_transaction)
-        
+
         if part_num not in jobs[job_num]['aggregated_transactions']:
             jobs[job_num]['aggregated_transactions'][part_num] = {
                 'part_number': part_num,
@@ -92,7 +114,7 @@ def _get_job_data(job_numbers):
                 'De-issue': 0,
                 'Relieve Job': 0
             }
-        
+
         if action in jobs[job_num]['aggregated_transactions'][part_num]:
             jobs[job_num]['aggregated_transactions'][part_num][action] += quantity
 
@@ -101,18 +123,21 @@ def _get_job_data(job_numbers):
     for job_num, job_data in jobs.items():
         if job_data['transactions']: # Only include jobs with some activity
             job_data['tooltip'] = '\n'.join(job_data['finish_job_transactions'])
-            
+
             for part_num, summary in job_data['aggregated_transactions'].items():
                 issued = summary.get('Issued inventory', 0)
                 relieve = summary.get('Relieve Job', 0)
                 deissue = summary.get('De-issue', 0)
                 yield_cost = issued - relieve - deissue
                 summary['Yield Cost/Scrap'] = yield_cost
-                
-                if relieve > 0:
-                    summary['Yield Loss'] = (yield_cost / relieve) * 100
+
+                # --- MODIFICATION: Handle potential division by zero ---
+                if relieve is not None and relieve != 0:
+                    summary['Yield Loss'] = (yield_cost / relieve) * 100 if relieve != 0 else 0
                 else:
-                    summary['Yield Loss'] = 0
+                    summary['Yield Loss'] = 0 # Define yield loss as 0 if nothing was relieved
+                # --- END MODIFICATION ---
+
 
             # Filter out unwanted parts *after* calculations
             job_data['aggregated_list'] = [
@@ -120,7 +145,11 @@ def _get_job_data(job_numbers):
                 if not part_num.startswith('0800-') and part_num != job_data['part_number']
             ]
             job_list.append(job_data)
-            
+
+    # --- MODIFICATION: Sort final list by job number ---
+    job_list.sort(key=lambda x: x.get('job_number', ''))
+    # --- END MODIFICATION ---
+
     return job_list
 
 
@@ -131,9 +160,12 @@ def view_open_jobs():
     if not require_login(session):
         return redirect(url_for('main.login'))
 
-    job_numbers = ['202504992', '202505440']
     job_list = []
     try:
+        # --- MODIFICATION: Fetch all open job numbers ---
+        job_numbers = erp_service.get_all_open_job_numbers()
+        print(f"Found {len(job_numbers)} open job numbers.")
+        # --- END MODIFICATION ---
         job_list = _get_job_data(job_numbers)
     except Exception as e:
         flash(f'Error fetching job data from ERP: {e}', 'error')
@@ -152,8 +184,10 @@ def get_open_jobs_data():
     if not require_login(session):
         return jsonify(success=False, message="Authentication required"), 401
 
-    job_numbers = ['202504992', '202505440']
     try:
+        # --- MODIFICATION: Fetch all open job numbers ---
+        job_numbers = erp_service.get_all_open_job_numbers()
+        # --- END MODIFICATION ---
         job_list = _get_job_data(job_numbers)
         return jsonify(success=True, jobs=job_list)
     except Exception as e:

@@ -9,7 +9,7 @@ from config import Config
 from datetime import datetime, timedelta
 
 class ERPConnection:
-    # ... (this class is unchanged) ...
+    # ... (this class remains unchanged) ...
     def __init__(self):
         self.connection = None
         self._connection_string = None # Store the successful connection string
@@ -22,7 +22,7 @@ class ERPConnection:
             'SQL Server Native Client 11.0', # Another common one
             'SQL Server' # Older, but often present as a fallback
         ]
-        
+
         # Remove duplicates while preserving order
         drivers = list(dict.fromkeys(drivers_to_try))
 
@@ -47,7 +47,7 @@ class ERPConnection:
             except pyodbc.Error:
                 print(f"ℹ️  [ERP_DB] Driver {driver} failed. Trying next...")
                 continue  # Try the next driver in the list
-        
+
         if not self.connection:
             print(f"❌ [ERP_DB] FATAL: Connection failed. All attempted drivers were unsuccessful.")
 
@@ -56,7 +56,7 @@ class ERPConnection:
         if not self.connection:
             print("❌ [ERP_DB] Cannot execute query, no active connection.")
             return []
-        
+
         try:
             cursor = self.connection.cursor()
             cursor.execute(sql, params or [])
@@ -86,6 +86,27 @@ def get_erp_db():
 class ErpService:
     """Contains all business logic for querying the ERP database."""
 
+    # --- NEW METHOD ---
+    def get_all_open_job_numbers(self):
+        """ Retrieves just the job numbers for all open production jobs ('a' type). """
+        db = get_erp_db()
+        sql = """
+            SELECT
+                j.jo_jobnum
+            FROM
+                dtjob j
+            WHERE
+                j.jo_closed IS NULL
+                AND j.jo_type = 'a'
+            ORDER BY
+                j.jo_jobnum ASC;
+        """
+        results = db.execute_query(sql)
+        # Extract just the numbers into a list
+        return [row['jo_jobnum'] for row in results] if results else []
+    # --- END NEW METHOD ---
+
+
     def get_open_production_jobs(self):
         """
         Retrieves all open production jobs ('a' type) that are linked to a sales order,
@@ -93,14 +114,14 @@ class ErpService:
         """
         db = get_erp_db()
         sql = """
-            SELECT 
+            SELECT
                 j.jo_jobnum,
                 (SELECT TOP 1 lj.lj_ordnum FROM dtljob lj WHERE lj.lj_jobnum = j.jo_jobnum ORDER BY lj.lj_linenum) as so_number,
                 (SELECT TOP 1 lj.lj_quant FROM dtljob lj WHERE lj.lj_jobnum = j.jo_jobnum ORDER BY lj.lj_linenum) as job_quantity,
                 (SELECT SUM(ISNULL(j4.j4_quant, 0)) FROM dtjob4 j4 WHERE j4.j4_jobnum = j.jo_jobnum) as completed_quantity
-            FROM 
+            FROM
                 dtjob j
-            WHERE 
+            WHERE
                 j.jo_closed IS NULL
                 AND j.jo_type = 'a'
                 AND EXISTS (SELECT 1 FROM dtljob lj WHERE lj.lj_jobnum = j.jo_jobnum AND lj.lj_ordnum IS NOT NULL);
@@ -113,16 +134,16 @@ class ErpService:
         """
         if not job_numbers:
             return []
-            
+
         db = get_erp_db()
-        
+
         placeholders = ', '.join(['?'] * len(job_numbers))
-        
+
         sql = f"""
-            SELECT 
-                f.fi_postref, 
-                f.fi_action, 
-                f.fi_quant, 
+            SELECT
+                f.fi_postref,
+                f.fi_action,
+                f.fi_quant,
                 f.fi_prid,
                 p.pr_codenum AS part_number,
                 p.pr_descrip AS part_description
@@ -130,9 +151,9 @@ class ErpService:
             LEFT JOIN dmprod p ON f.fi_prid = p.pr_id
             WHERE f.fi_postref IN ({placeholders})
         """
-        
+
         params = [f'JJ-{job_number}' for job_number in job_numbers]
-        
+
         return db.execute_query(sql, params)
 
     def get_relieve_job_data(self, job_numbers):
@@ -141,13 +162,13 @@ class ErpService:
         """
         if not job_numbers:
             return []
-        
+
         db = get_erp_db()
-        
+
         placeholders = ', '.join(['?'] * len(job_numbers))
-        
+
         sql = f"""
-            SELECT 
+            SELECT
                 f2.f2_postref,
                 f2.f2_action,
                 f2.f2_prid,
@@ -159,12 +180,12 @@ class ErpService:
             WHERE f2.f2_postref IN ({placeholders})
             AND f2.f2_action = 'Relieve Job'
         """
-        
+
         params = [f'JJ-{job_number}' for job_number in job_numbers]
-        
+
         return db.execute_query(sql, params)
 
-    # ... (all other existing methods like get_raw_material_inventory, get_bom_data, etc. remain here) ...
+    # ... (all other existing methods like get_raw_material_inventory, get_bom_data, etc. remain here exactly as they were) ...
     def get_raw_material_inventory(self):
         """
         Retrieves all raw material inventory, categorized by status, based on the provided JS logic.
@@ -174,8 +195,8 @@ class ErpService:
             SELECT
                 p.pr_codenum AS PartNumber,
                 -- Truly Available (Approved, not tied to job/staging/quarantine)
-                SUM(CASE 
-                    WHEN f.fi_type NOT IN ('quarantine', 'job', 'staging') 
+                SUM(CASE
+                    WHEN f.fi_type NOT IN ('quarantine', 'job', 'staging')
                     AND (f.fi_qc IS NULL OR f.fi_qc <> 'Pending')
                     THEN f.fi_balance ELSE 0 END) AS on_hand_approved,
                 -- Pending QC
@@ -186,9 +207,9 @@ class ErpService:
                 SUM(CASE WHEN f.fi_type = 'job' AND f.fi_action = 'Issued inventory' THEN f.fi_balance ELSE 0 END) AS issued_to_job,
                 -- Staged for Production
                 SUM(CASE WHEN f.fi_type = 'staging' THEN f.fi_balance ELSE 0 END) AS staged
-            FROM 
+            FROM
                 dtfifo f
-            JOIN 
+            JOIN
                 dmprod p ON f.fi_prid = p.pr_id
             WHERE
                 f.fi_balance > 0
@@ -268,7 +289,7 @@ class ErpService:
         db = get_erp_db()
         sql = """
             -- Updated SQL query using fi_balance > 0 to get current QC Pending items
-            SELECT 
+            SELECT
                 fi.fi_id as "Inventory ID",
                 fi.fi_lotnum as "System Lot",
                 fi.fi_userlot as "User Lot",
@@ -300,7 +321,7 @@ class ErpService:
             -- Comprehensive BOM Query - All Active BOMs with Latest Revisions
             WITH LatestBOMRevisions AS (
                 -- Find the latest revision ID for each parent product
-                SELECT 
+                SELECT
                     bom.bo_bomfor as parent_product_id,
                     MAX(bom.bo_reid) as latest_revision_id
                 FROM dmbom bom
@@ -308,60 +329,60 @@ class ErpService:
                 WHERE parent.pr_active = 1
                 GROUP BY bom.bo_bomfor
             )
-            SELECT 
+            SELECT
                 -- Basic BOM Information
                 bom.bo_seq as Seq,
                 comp.pr_codenum as "Part Number",
                 comp.pr_descrip as Description,
                 bom_unit.un_name as Unit,
                 bom.bo_quant as Quantity,
-                
+
                 -- MRP Critical Information
                 bom.bo_scrap as "Scrap %",
-                bom.bo_overage as "Overage %", 
+                bom.bo_overage as "Overage %",
                 bom.bo_overissue as "Overissue %",
                 bom.bo_incqty as "Incremental Qty",
-                
+
                 -- Lot and Quality Control
                 CASE WHEN bom.bo_uselot = 1 THEN 'Yes' ELSE 'No' END as "Lot Tracking",
                 CASE WHEN bom.bo_useexp = 1 THEN 'Yes' ELSE 'No' END as "Expiration Tracking",
-                
+
                 -- Product Category
                 cat.ca_name as "Product Category",
-                
+
                 -- BOM Calculation Method
                 bom.bo_bomcalc as "Calculation Method",
-                
+
                 -- Flags for MRP Processing
                 CASE WHEN bom.bo_costonly = 1 THEN 'Yes' ELSE 'No' END as "Costing Only",
                 CASE WHEN bom.bo_byproduct = 1 THEN 'Yes' ELSE 'No' END as "Byproduct",
                 CASE WHEN bom.bo_subtot = 1 THEN 'Yes' ELSE 'No' END as "Subtotal",
                 CASE WHEN bom.bo_reqseq = 1 THEN 'Yes' ELSE 'No' END as "Sequential",
-                
+
                 -- Shelf Life Requirements
                 bom.bo_shelfdays as "Shelf Life Days",
                 bom.bo_shelfpct as "Shelf Life %",
                 bom.bo_minage as "Min Age Days",
                 bom.bo_maxage as "Max Age Days",
-                
+
                 -- Revision Information
                 bom.bo_reid as "Revision ID",
-                
+
                 -- Designator and Notes
                 bom.bo_desig as Designator,
                 bom.bo_notes as Notes,
-                
+
                 -- Component Product ID
                 comp.pr_id as "Component ID",
-                
+
                 -- Parent Product Information
                 parent.pr_id as "Parent ID",
                 parent.pr_codenum as "Parent Part Number",
                 parent.pr_descrip as "Parent Description",
-                
+
                 -- Unit Conversion Factors
                 bom_unit.un_factor as "Unit Factor",
-                
+
                 -- MRP Planning Parameters
                 comp.pr_reorder as "Reorder Point",
                 comp.pr_minquant as "Min Order Qty",
@@ -385,7 +406,7 @@ class ErpService:
             LEFT JOIN dmunit bom_unit ON bom.bo_unid = bom_unit.un_id
 
             -- Join with the latest revision CTE
-            INNER JOIN LatestBOMRevisions ON bom.bo_bomfor = LatestBOMRevisions.parent_product_id 
+            INNER JOIN LatestBOMRevisions ON bom.bo_bomfor = LatestBOMRevisions.parent_product_id
                                          AND bom.bo_reid = LatestBOMRevisions.latest_revision_id
             WHERE comp.pr_active = 1 AND parent.pr_active = 1
         """
@@ -395,9 +416,9 @@ class ErpService:
             params.append(parent_part_number)
 
         sql += " ORDER BY parent.pr_codenum, bom.bo_seq"
-        
+
         return db.execute_query(sql, params)
-    
+
     def get_open_jobs_by_line(self, facility, line):
         db = get_erp_db()
         sql = """
@@ -412,13 +433,13 @@ class ErpService:
                 ISNULL(p.pr_codenum, 'UNKNOWN') AS PartNumber,
                 ISNULL(p.pr_descrip, 'UNKNOWN') AS PartDescription,
                 ISNULL(p1.p1_name, 'N/A') AS Customer,
-                CASE 
+                CASE
                     WHEN ca.ca_name = 'Stick Pack' THEN 'SP'
                     ELSE 'BPS'
                 END AS s_BU,
                 ISNULL(line.d3_value, 'N/A') AS ProductionLine,
-                CASE 
-                    WHEN jl.lj_ordnum IS NOT NULL AND jl.lj_ordnum != 0 
+                CASE
+                    WHEN jl.lj_ordnum IS NOT NULL AND jl.lj_ordnum != 0
                         THEN CONVERT(VARCHAR, jl.lj_ordnum)
                     WHEN wip_so.d2_value IS NOT NULL AND wip_so.d2_value != '' AND wip_so.d2_value != '0'
                         THEN wip_so.d2_value
@@ -450,13 +471,13 @@ class ErpService:
         sql = """
             SELECT
                 p.pr_codenum AS PartNumber,
-                SUM(CASE 
-                    WHEN (f.fi_qc IS NULL OR f.fi_qc <> 'Pending') THEN f.fi_balance 
-                    ELSE 0 
+                SUM(CASE
+                    WHEN (f.fi_qc IS NULL OR f.fi_qc <> 'Pending') THEN f.fi_balance
+                    ELSE 0
                 END) AS on_hand_approved,
-                SUM(CASE 
-                    WHEN f.fi_qc = 'Pending' THEN f.fi_balance 
-                    ELSE 0 
+                SUM(CASE
+                    WHEN f.fi_qc = 'Pending' THEN f.fi_balance
+                    ELSE 0
                 END) AS on_hand_pending_qc,
                 SUM(f.fi_balance) AS TotalOnHand
             FROM dtfifo f
@@ -475,18 +496,18 @@ class ErpService:
         today = datetime.now()
         first_of_this_month = today.replace(day=1)
         last_of_previous_month = first_of_this_month - timedelta(days=1)
-        
+
         # CHANGED: Cutoff day from 19 to 21
         prior_cutoff_date = last_of_previous_month.replace(day=21)
         current_cutoff_date = today.replace(day=21)
         # The end of the middle bucket is the 20th
         current_twentieth_date = today.replace(day=20)
-        
+
         date_format = '%m/%d/%y'
         prior_cutoff_str = prior_cutoff_date.strftime(date_format)
         current_twentieth_str = current_twentieth_date.strftime(date_format)
         current_cutoff_str = current_cutoff_date.strftime(date_format)
-        
+
         # CHANGED: Labels updated to reflect new dates
         label1 = f"FG On Hand - Prior {prior_cutoff_str}"
         label2 = f"FG On Hand - {prior_cutoff_str} To {current_twentieth_str}"
@@ -508,7 +529,7 @@ class ErpService:
         """
         params = (prior_cutoff_date, prior_cutoff_date, current_cutoff_date, current_cutoff_date)
         result = db.execute_query(sql, params)
-        
+
         if result:
             return {
                 'label1': label1, 'value1': result[0]['value1'] or 0,
@@ -535,7 +556,7 @@ class ErpService:
         db = get_erp_db()
         sql = """
             WITH LatestOrderStatus AS (
-                SELECT 
+                SELECT
                     to_ordnum, to_billpo, to_ordtype, to_shipped, to_id, to_wanted, to_promise,
                     to_orddate, to_dueship, to_s1id, to_biid, to_notes, to_waid,
                     ROW_NUMBER() OVER (PARTITION BY to_ordnum ORDER BY to_id DESC) as rn
@@ -543,17 +564,17 @@ class ErpService:
                 WHERE to_ordtype IN ('s', 'h', 'd', 'm', 'l')
             ),
             OpenOrders AS (
-                SELECT 
+                SELECT
                     to_ordnum, to_billpo, to_ordtype, to_id as latest_to_id, to_wanted, to_promise,
                     to_orddate, to_dueship, to_s1id, to_biid, to_notes, to_waid
                 FROM LatestOrderStatus
                 WHERE rn = 1 AND to_ordtype IN ('s', 'h', 'm', 'l') AND to_shipped IS NULL
             ),
             PrimarySalesRep AS (
-                SELECT 
+                SELECT
                     s2_recid, s2_table,
-                    CASE 
-                        WHEN COUNT(CASE WHEN sm.sm_lname != 'HOUSE ACCOUNT' THEN 1 END) > 0 
+                    CASE
+                        WHEN COUNT(CASE WHEN sm.sm_lname != 'HOUSE ACCOUNT' THEN 1 END) > 0
                         THEN MAX(CASE WHEN sm.sm_lname != 'HOUSE ACCOUNT' THEN sm.sm_lname END)
                         ELSE MAX(sm.sm_lname)
                     END as primary_rep
@@ -563,7 +584,7 @@ class ErpService:
                 GROUP BY s2_recid, s2_table
             ),
             RiskData AS (
-                SELECT 
+                SELECT
                     d2_recid as to_id,
                     MAX(CASE WHEN d1_field = 'u_No_Risk' THEN d2_value END) AS no_risk_value,
                     MAX(CASE WHEN d1_field = 'u_Low_Risk' THEN d2_value END) AS low_risk_value,
@@ -604,7 +625,7 @@ class ErpService:
                          p.pr_user5, p.pr_caid, p.pr_unid, p.pr_user3, p.pr_id, o.or_price
             ),
             ProducedQuantities AS (
-                SELECT 
+                SELECT
                     lj.lj_ordnum as SalesOrder,
                     p.pr_codenum as PartNumber,
                     SUM(COALESCE(j4.j4_quant, 0)) as TotalProducedQty
@@ -616,14 +637,14 @@ class ErpService:
                 GROUP BY lj.lj_ordnum, p.pr_codenum
             ),
             TotalShippedQuantities AS (
-                SELECT 
+                SELECT
                     FLOOR(ord.to_ordnum / 100) * 100 AS original_so_num,
                     prod.pr_codenum,
                     SUM(det.or_shipquant) AS total_shipped
                 FROM dttord ord
                 INNER JOIN dtord det ON ord.to_id = det.or_toid
                 INNER JOIN dmprod prod ON det.or_prid = prod.pr_id
-                WHERE ord.to_shipped IS NOT NULL 
+                WHERE ord.to_shipped IS NOT NULL
                 AND ord.to_status = 'c'
                 AND ord.to_ordtype IN ('s', 'm')
                 GROUP BY FLOOR(ord.to_ordnum / 100) * 100, prod.pr_codenum
@@ -648,46 +669,46 @@ class ErpService:
                 COALESCE(tsq.total_shipped, 0) AS [Total Shipped Qty],
                 aod.total_current_qty AS [Ord Qty - Cur. Level],
                 COALESCE(pq.TotalProducedQty, 0) AS [Produced Qty],
-                
+
                 0 AS [Net Qty], /* Placeholder, will be calculated in Python */
 
-                CASE 
-                    WHEN aod.line_sequence = 1 AND rd.no_risk_value IS NOT NULL AND ISNUMERIC(rd.no_risk_value) = 1 
+                CASE
+                    WHEN aod.line_sequence = 1 AND rd.no_risk_value IS NOT NULL AND ISNUMERIC(rd.no_risk_value) = 1
                     THEN CAST(rd.no_risk_value AS NUMERIC(18,2))
                     ELSE 0
                 END AS [Can Make - No Risk],
-                CASE 
-                    WHEN aod.line_sequence = 1 AND rd.low_risk_value IS NOT NULL AND ISNUMERIC(rd.low_risk_value) = 1 
+                CASE
+                    WHEN aod.line_sequence = 1 AND rd.low_risk_value IS NOT NULL AND ISNUMERIC(rd.low_risk_value) = 1
                     THEN CAST(rd.low_risk_value AS NUMERIC(18,2))
                     ELSE 0
                 END AS [Low Risk],
-                CASE 
-                    WHEN aod.line_sequence = 1 AND rd.high_risk_value IS NOT NULL AND ISNUMERIC(rd.high_risk_value) = 1 
+                CASE
+                    WHEN aod.line_sequence = 1 AND rd.high_risk_value IS NOT NULL AND ISNUMERIC(rd.high_risk_value) = 1
                     THEN CAST(rd.high_risk_value AS NUMERIC(18,2))
                     ELSE 0
                 END AS [High Risk],
                 COALESCE(un.un_name, 'N/A') AS [UoM],
                 COALESCE(aod.pr_user3, '') AS [Qty Per UoM],
-                CASE 
-                    WHEN ISNUMERIC(aod.pr_user3) = 1 AND aod.pr_user3 <> '' 
+                CASE
+                    WHEN ISNUMERIC(aod.pr_user3) = 1 AND aod.pr_user3 <> ''
                     THEN aod.total_current_qty * CAST(aod.pr_user3 AS NUMERIC(18,2))
                     ELSE aod.total_current_qty
                 END AS [Ext Qty (Current x per UoM)],
                 aod.or_price AS [Unit Price],
                 aod.total_current_qty * aod.or_price AS [Ext $ (Current x Price)],
                 (aod.total_original_qty - COALESCE(pq.TotalProducedQty, 0)) * aod.or_price AS [Ext $ (Net Qty x Price)],
-                CASE 
-                    WHEN aod.line_sequence = 1 AND rd.no_risk_value IS NOT NULL AND ISNUMERIC(rd.no_risk_value) = 1 
+                CASE
+                    WHEN aod.line_sequence = 1 AND rd.no_risk_value IS NOT NULL AND ISNUMERIC(rd.no_risk_value) = 1
                     THEN CAST(rd.no_risk_value AS NUMERIC(18,2)) * aod.or_price
                     ELSE 0
                 END AS [$ Can Make - No Risk],
-                CASE 
-                    WHEN aod.line_sequence = 1 AND rd.low_risk_value IS NOT NULL AND ISNUMERIC(rd.low_risk_value) = 1 
+                CASE
+                    WHEN aod.line_sequence = 1 AND rd.low_risk_value IS NOT NULL AND ISNUMERIC(rd.low_risk_value) = 1
                     THEN CAST(rd.low_risk_value AS NUMERIC(18,2)) * aod.or_price
                     ELSE 0
                 END AS [$ Low Risk],
-                CASE 
-                    WHEN aod.line_sequence = 1 AND rd.high_risk_value IS NOT NULL AND ISNUMERIC(rd.high_risk_value) = 1 
+                CASE
+                    WHEN aod.line_sequence = 1 AND rd.high_risk_value IS NOT NULL AND ISNUMERIC(rd.high_risk_value) = 1
                     THEN CAST(rd.high_risk_value AS NUMERIC(18,2)) * aod.or_price
                     ELSE 0
                 END AS [$ High Risk],
