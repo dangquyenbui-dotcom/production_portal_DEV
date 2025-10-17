@@ -1,0 +1,633 @@
+/* ===========================
+   Downtime Tracker - Base Styles
+   =========================== */
+
+/* Theme Variables */
+:root {
+    /* Light Theme (Default) */
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f7fafc;
+    --bg-hover: #f7fafc;
+    --bg-modal: rgba(0, 0, 0, 0.5);
+    
+    --text-primary: #2d3748;
+    --text-secondary: #4a5568;
+    --text-tertiary: #718096;
+    --text-muted: #a0aec0;
+    --text-inverse: #ffffff;
+    
+    --border-primary: #e2e8f0;
+    --border-secondary: #cbd5e0;
+    
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-subtle: linear-gradient(135deg, #667eea08 0%, #764ba208 100%);
+    
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+    --shadow-lg: 0 8px 16px rgba(0,0,0,0.15);
+    --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.3);
+    
+    /* Accent Colors */
+    --accent-blue: #667eea;
+    --accent-green: #48bb78;
+    --accent-orange: #ed8936;
+    --accent-purple: #805ad5;
+    --accent-red: #f56565;
+    
+    /* Form Elements */
+    --input-bg: #ffffff;
+    --input-border: #e2e8f0;
+    --input-focus-border: #667eea;
+    
+    /* Buttons */
+    --btn-secondary-bg: #e2e8f0;
+    --btn-secondary-text: #4a5568;
+    --btn-secondary-hover: #cbd5e0;
+    --btn-info-bg: #bee3f8;
+    --btn-info-text: #2a4e7c;
+    --btn-info-hover: #90cdf4;
+    
+    /* Status Badges */
+    --status-active-bg: #c6f6d5;
+    --status-active-text: #2f855a;
+    --status-inactive-bg: #fed7d7;
+    --status-inactive-text: #c53030;
+    
+    /* Alerts */
+    --alert-success-bg: #c6f6d5;
+    --alert-success-text: #2f855a;
+    --alert-success-border: #9ae6b4;
+    --alert-error-bg: #fed7d7;
+    --alert-error-text: #c53030;
+    --alert-error-border: #fc8181;
+    --alert-info-bg: #bee3f8;
+    --alert-info-text: #2a4e7c;
+    --alert-info-border: #90cdf4;
+    
+    /* Tables */
+    --table-header-bg: #f7fafc;
+    --table-header-text: #4a5568;
+    --table-border: #e2e8f0;
+    
+    /* Modal */
+    --modal-close-color: #a0aec0;
+    --modal-close-hover: #4a5568;
+}
+
+/* Dark Theme - TRUE BLACK for OLED */
+[data-theme="dark"] {
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-tertiary: #141414;
+    --bg-hover: #1a1a1a;
+    --bg-modal: rgba(0, 0, 0, 0.8);
+    
+    --text-primary: #ffffff;
+    --text-secondary: #e2e8f0;
+    --text-tertiary: #cbd5e0;
+    --text-muted: #718096;
+    --text-inverse: #000000;
+    
+    --border-primary: #2d2d2d;
+    --border-secondary: #404040;
+    
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-subtle: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+    
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.5);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
+    --shadow-lg: 0 8px 16px rgba(0,0,0,0.7);
+    --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.9);
+    
+    --accent-blue: #90cdf4;
+    --accent-green: #68d391;
+    --accent-orange: #f6ad55;
+    --accent-purple: #b794f4;
+    --accent-red: #fc8181;
+    
+    --input-bg: #141414;
+    --input-border: #2d2d2d;
+    --input-focus-border: #90cdf4;
+    
+    --btn-secondary-bg: #141414;
+    --btn-secondary-text: #e2e8f0;
+    --btn-secondary-hover: #2d2d2d;
+    --btn-info-bg: rgba(144, 205, 244, 0.2);
+    --btn-info-text: #90cdf4;
+    --btn-info-hover: rgba(144, 205, 244, 0.3);
+    
+    --status-active-bg: rgba(104, 211, 145, 0.2);
+    --status-active-text: #68d391;
+    --status-inactive-bg: rgba(252, 129, 129, 0.2);
+    --status-inactive-text: #fc8181;
+    
+    --alert-success-bg: rgba(104, 211, 145, 0.2);
+    --alert-success-text: #68d391;
+    --alert-success-border: #68d391;
+    --alert-error-bg: rgba(252, 129, 129, 0.2);
+    --alert-error-text: #fc8181;
+    --alert-error-border: #fc8181;
+    --alert-info-bg: rgba(144, 205, 244, 0.2);
+    --alert-info-text: #90cdf4;
+    --alert-info-border: #90cdf4;
+    
+    --table-header-bg: #141414;
+    --table-header-text: #e2e8f0;
+    --table-border: #2d2d2d;
+    
+    --modal-close-color: #cbd5e0;
+    --modal-close-hover: #ffffff;
+}
+
+/* Base Reset & Body */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Hide body until styles are loaded to prevent flash */
+body {
+    visibility: hidden;
+    opacity: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Show body after styles are ready */
+body.loaded {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+/* ===========================
+   Navigation Bar
+   =========================== */
+.navbar {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 15px 30px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 20px; /* MODIFIED: Increased space between logo and title */
+}
+
+.navbar-logo-link img {
+    height: 45px; /* MODIFIED: Increased logo height */
+    width: auto;
+}
+
+.logo-dark {
+    display: none;
+}
+.logo-light {
+    display: block;
+}
+[data-theme="dark"] .logo-light {
+    display: none;
+}
+[data-theme="dark"] .logo-dark {
+    display: block;
+}
+
+.navbar h1 {
+    font-size: 20px; /* MODIFIED: Reduced title font size */
+    font-weight: 600;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    transition: background 0.2s;
+}
+
+.nav-links a:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Theme Toggle */
+.theme-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 25px;
+}
+
+.theme-icon {
+    font-size: 18px;
+}
+
+.theme-toggle {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 34px;
+    cursor: pointer;
+}
+
+.theme-toggle input {
+    display: none;
+}
+
+.theme-toggle-slider {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+[data-theme="dark"] .theme-toggle-slider {
+    background: #000000;
+}
+
+.theme-toggle input:checked ~ .theme-toggle-slider {
+    transform: translateX(24px);
+}
+
+/* ===========================
+   Container & Layout
+   =========================== */
+.container {
+    max-width: 1400px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+/* ===========================
+   Cards
+   =========================== */
+.header-card {
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 30px;
+    border: 1px solid var(--border-primary);
+}
+
+.header-card h1 {
+    color: var(--text-primary);
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.header-card p {
+    color: var(--text-tertiary);
+    font-size: 16px;
+}
+
+/* ===========================
+   Buttons
+   =========================== */
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: var(--gradient-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-secondary {
+    background: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
+}
+
+.btn-secondary:hover {
+    background: var(--btn-secondary-hover);
+}
+
+.btn-info {
+    background: var(--btn-info-bg);
+    color: var(--btn-info-text);
+}
+
+.btn-info:hover {
+    background: var(--btn-info-hover);
+}
+
+.btn-sm {
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===========================
+   Forms
+   =========================== */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.form-control,
+.form-select,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="date"],
+input[type="datetime-local"],
+select,
+textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--input-border);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.form-control:focus,
+.form-select:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus,
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+    box-shadow: 0 0 0 3px rgba(144, 205, 244, 0.1);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-tertiary);
+}
+
+/* ===========================
+   Tables
+   =========================== */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    background: var(--table-header-bg);
+    color: var(--table-header-text);
+    font-weight: 600;
+    padding: 15px 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--table-border);
+}
+
+.table td {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--table-border);
+    color: var(--text-primary);
+}
+
+.table tbody tr {
+    transition: background 0.2s;
+}
+
+.table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.table tbody tr.hidden {
+    display: none;
+}
+
+/* ===========================
+   Status Badges
+   =========================== */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: var(--status-active-bg);
+    color: var(--status-active-text);
+}
+
+.status-inactive {
+    background: var(--status-inactive-bg);
+    color: var(--status-inactive-text);
+}
+
+/* ===========================
+   Alerts
+   =========================== */
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    transition: opacity 0.5s ease;
+}
+
+.alert-success {
+    background: var(--alert-success-bg);
+    color: var(--alert-success-text);
+    border: 1px solid var(--alert-success-border);
+}
+
+.alert-error {
+    background: var(--alert-error-bg);
+    color: var(--alert-error-text);
+    border: 1px solid var(--alert-error-border);
+}
+
+.alert-info {
+    background: var(--alert-info-bg);
+    color: var(--alert-info-text);
+    border: 1px solid var(--alert-info-border);
+}
+
+/* ===========================
+   Modals
+   =========================== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-modal);
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    position: relative;
+    animation: modalSlideIn 0.3s ease-out;
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal h2 {
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 25px;
+}
+
+.close {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--modal-close-color);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close:hover {
+    color: var(--modal-close-hover);
+}
+
+/* ===========================
+   Utility Classes
+   =========================== */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-tertiary);
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.empty-state h3 {
+    font-size: 20px;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+/* ===========================
+   Responsive Design
+   =========================== */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        text-align: center;
+        padding: 15px 20px;
+    }
+
+    .navbar-brand {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .nav-links {
+        margin-top: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .theme-toggle-wrapper {
+        order: -1;
+        margin-bottom: 10px;
+    }
+    
+    .container {
+        padding: 0 15px;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 10px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+        padding: 20px;
+    }
+}
