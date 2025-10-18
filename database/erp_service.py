@@ -10,7 +10,8 @@ from .erp_queries import (
     POQueries,
     QCQueries,
     BOMQueries,
-    SalesQueries
+    SalesQueries,
+    CoCQueries # <-- ADD THIS IMPORT
 )
 
 class ErpService:
@@ -24,31 +25,53 @@ class ErpService:
         self.qc_queries = QCQueries()
         self.bom_queries = BOMQueries()
         self.sales_queries = SalesQueries()
+        self.coc_queries = CoCQueries() # <-- INSTANTIATE THE NEW CLASS
 
-    # --- Job Related Methods ---
+    # --- Job Related Methods (for Open Jobs Page) ---
     def get_all_open_job_numbers(self):
         return self.job_queries.get_all_open_job_numbers()
 
-    # --- ADD THIS METHOD ---
     def get_open_job_headers(self, job_numbers):
-        """Delegates call to JobQueries to get header info."""
+        """Delegates call to JobQueries to get header info for OPEN jobs."""
         return self.job_queries.get_open_job_headers(job_numbers)
-    # --- END ADD ---
 
     def get_open_production_jobs(self):
-        # This might be redundant now, consider removing if get_open_job_headers covers needs
+        # Keeping for potential other uses, might be redundant
         return self.job_queries.get_open_production_jobs()
 
     def get_open_job_details(self, job_numbers):
-        """Delegates call to JobQueries to get transaction details."""
+        """Delegates call to JobQueries to get transaction details (dtfifo) for MULTIPLE jobs."""
         return self.job_queries.get_open_job_details(job_numbers)
 
     def get_relieve_job_data(self, job_numbers):
-        """Delegates call to JobQueries to get relieve transaction details."""
+        """Delegates call to JobQueries to get relieve transaction details (dtfifo2) for MULTIPLE jobs."""
         return self.job_queries.get_relieve_job_data(job_numbers)
 
     def get_open_jobs_by_line(self, facility, line):
         return self.job_queries.get_open_jobs_by_line(facility, line)
+
+    # ***** NEW METHOD FOR CoC Report *****
+    def get_coc_report_data(self, job_number):
+        """
+        Fetches all necessary data (header and transactions) for a single job number
+        for the Certificate of Compliance report, regardless of job status.
+        Returns None if header not found, otherwise returns header + transactions.
+        """
+        header = self.coc_queries.get_job_header_by_number(job_number)
+        if not header:
+            return None # Indicate job header wasn't found
+
+        # Pass the single job number in a list as expected by the transaction functions
+        job_number_list = [str(job_number)]
+        fifo_details = self.coc_queries.get_job_transaction_details(job_number) # Use CoCQueries method
+        relieve_details = self.coc_queries.get_job_relieve_data(job_number)     # Use CoCQueries method
+
+        return {
+            "header": header,
+            "fifo_details": fifo_details,
+            "relieve_details": relieve_details
+        }
+    # ***** END NEW METHOD *****
 
     # --- Inventory Related Methods ---
     def get_raw_material_inventory(self):
@@ -83,7 +106,7 @@ class ErpService:
         return self.sales_queries.get_open_order_schedule()
 
 
-# --- Singleton instance management for the Service ---
+# --- Singleton instance management ---
 _erp_service_instance = None
 
 def get_erp_service():
@@ -94,10 +117,12 @@ def get_erp_service():
         _erp_service_instance = ErpService()
     return _erp_service_instance
 
+# Optional: Function to explicitly close the connection if needed during shutdown/testing
 def close_erp_connection():
     """Explicitly closes the shared ERP database connection."""
-    global _erp_connection_instance
     conn_instance = get_erp_db_connection()
     if conn_instance:
         conn_instance.close()
+    # If using singleton for ErpService, you might want to clear it too
+    global _erp_service_instance
     _erp_service_instance = None

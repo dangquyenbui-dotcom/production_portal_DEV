@@ -7,6 +7,7 @@ from .po_queries import POQueries
 from .qc_queries import QCQueries
 from .bom_queries import BOMQueries
 from .sales_queries import SalesQueries
+from .coc_queries import CoCQueries # <-- ADD THIS IMPORT
 
 __all__ = [
     'JobQueries',
@@ -15,4 +16,5 @@ __all__ = [
     'QCQueries',
     'BOMQueries',
     'SalesQueries',
+    'CoCQueries', # <-- ADD THIS EXPORT
 ]
