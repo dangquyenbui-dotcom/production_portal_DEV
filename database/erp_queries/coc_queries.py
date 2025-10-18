@@ -50,7 +50,7 @@ class CoCQueries:
     def get_job_transaction_details(self, job_number):
         """
         Retrieves TRANSACTION details (dtfifo) for a specific job number.
-        Includes fi_recdate for timestamp matching.
+        Includes fi_recdate, fi_userlot, fi_id, and fi_expires.
         """
         if not job_number: return []
         db = get_erp_db_connection()
@@ -60,11 +60,14 @@ class CoCQueries:
 
         sql = """
             SELECT
+                f.fi_id, 
                 f.fi_postref,
                 f.fi_action,
                 f.fi_quant,
                 f.fi_prid,
-                f.fi_recdate, -- <<< ADDED TIMESTAMP
+                f.fi_recdate, 
+                ISNULL(f.fi_userlot, '') AS lot_number,
+                f.fi_expires, -- <<< MODIFICATION: Added expiration date
                 p_fifo.pr_codenum AS part_number,
                 p_fifo.pr_descrip AS part_description
             FROM dtfifo f
@@ -78,8 +81,7 @@ class CoCQueries:
     def get_job_relieve_data(self, job_number):
         """
         Retrieves relieve job data (dtfifo2) for a specific job number.
-        Includes f2_recdate for timestamp matching.
-        Assumes f2_id is a unique identifier for dtfifo2 rows. Adjust if needed.
+        Includes f2_recdate and f2_fiid for linking.
         """
         if not job_number: return []
         db = get_erp_db_connection()
@@ -89,11 +91,12 @@ class CoCQueries:
 
         sql = """
             SELECT
-                f2.f2_id, -- <<< ADDED unique ID (assuming f2_id exists)
+                f2.f2_id, 
                 f2.f2_postref,
                 f2.f2_action,
                 f2.f2_prid,
-                f2.f2_recdate, -- <<< ADDED TIMESTAMP
+                f2.f2_recdate,
+                f2.f2_fiid, 
                 (f2.f2_oldquan - f2.f2_newquan) AS net_quantity,
                 p.pr_codenum AS part_number,
                 p.pr_descrip AS part_description
