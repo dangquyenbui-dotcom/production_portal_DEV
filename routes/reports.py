@@ -2,14 +2,19 @@
 """
 Reporting routes for generating and viewing system reports.
 """
-
-from flask import Blueprint, render_template, redirect, url_for, session, request, flash
+# <<< MODIFICATION: Added send_file
+from flask import (
+    Blueprint, render_template, redirect, url_for, session, request, flash, send_file
+)
 from auth import require_login, require_admin
 from routes.main import validate_session
 from database import facilities_db, lines_db, get_erp_service
 from database.reports import reports_db
 from datetime import datetime, timedelta
 import traceback
+from collections import OrderedDict
+import io # <<< MODIFICATION: Added io
+from utils.pdf_generator import generate_coc_pdf # <<< MODIFICATION: Import new PDF generator
 
 # Helper function
 def safe_float(value, default=0.0):
@@ -18,157 +23,191 @@ def safe_float(value, default=0.0):
     try: return float(value)
     except (TypeError, ValueError): return default
 
-# ***** MODIFIED HELPER FUNCTION for CoC Report *****
+# Helper function to format dates
+def _format_date(date_obj, date_format='%m/%d/%Y', default='N/A'): # Format: MM/DD/YYYY
+    """Safely format a datetime object, handling None."""
+    if date_obj is None:
+        return default
+    try:
+        return date_obj.strftime(date_format)
+    except AttributeError:
+        return default
+
+# ***** HELPER FUNCTION for CoC Report (Unchanged from last step) *****
 def _get_single_job_details(job_number_str):
     """Fetches and processes data for a single job for the CoC report."""
     if not job_number_str:
         return None
 
-    erp_service = get_erp_service() # Get the service instance
-    raw_data = erp_service.get_coc_report_data(job_number_str) # Fetches header, fifo, relieve
+    erp_service = get_erp_service()
+    raw_data = erp_service.get_coc_report_data(job_number_str)
 
     if not raw_data or not raw_data.get("header"):
         return {'error': f"Job '{job_number_str}' not found in the ERP system."}
 
     header = raw_data["header"]
-    fifo_details = raw_data.get("fifo_details", []) # These are now sorted by fi_recdate
-    relieve_details = raw_data.get("relieve_details", []) # These are now sorted by f2_recdate
+    fifo_details = raw_data.get("fifo_details", [])
+    relieve_details = raw_data.get("relieve_details", [])
 
-    # --- Initialize Job Data Structure ---
     job_data = {
         'job_number': str(header['jo_jobnum']),
         'part_number': header.get('part_number', ''),
+        'part_description': header.get('part_description', ''),
         'customer_name': header.get('customer_name', 'N/A'),
         'sales_order': str(header.get('sales_order_number', '')) if header.get('sales_order_number') else '',
         'required_qty': safe_float(header.get('required_quantity')),
         'completed_qty': 0.0,
-        'aggregated_transactions': {} # Stores the final calculated values per component
+        'aggregated_transactions': {}
     }
 
-    # --- Separate FIFO transactions and identify Finish Job timestamps ---
     finish_job_entries = []
     other_fifo_entries = []
+    
+    fi_id_to_details_map = {
+        row.get('fi_id'): {
+            'lot_number': row.get('lot_number', ''),
+            'exp_date': _format_date(row.get('fi_expires'))
+        }
+        for row in fifo_details if row.get('fi_id')
+    }
+
     for row in fifo_details:
         action = row.get('fi_action')
-        timestamp = row.get('fi_recdate') # Get timestamp
+        timestamp = row.get('fi_recdate')
         quantity = safe_float(row.get('fi_quant'))
 
-        # Ensure timestamp is valid before using
         if action == 'Finish Job' and timestamp:
             finish_job_entries.append({'timestamp': timestamp, 'quantity': quantity})
-            job_data['completed_qty'] += quantity # Sum total completed qty
+            job_data['completed_qty'] += quantity
         else:
             other_fifo_entries.append(row)
 
-    # Sort Finish Job entries just in case the query order wasn't perfect
     finish_job_entries.sort(key=lambda x: x['timestamp'])
 
-    # --- Process FIFO (Issued/De-issue) ---
     for row in other_fifo_entries:
         part_num = row.get('part_number', '')
         part_desc = row.get('part_description', '')
+        lot_num = row.get('lot_number', '') 
+        exp_date = _format_date(row.get('fi_expires')) 
         action = row.get('fi_action')
         quantity = safe_float(row.get('fi_quant'))
 
-        if not part_num: continue # Skip if no part number
+        if not part_num: continue 
 
-        if part_num not in job_data['aggregated_transactions']:
-            job_data['aggregated_transactions'][part_num] = {
-                'part_number': part_num, 'part_description': part_desc,
-                'Issued inventory': 0.0, 'De-issue': 0.0, 'Relieve Job': 0.0, # Initialize Relieve Job here
-                'Yield Cost/Scrap': 0.0, 'Yield Loss': 0.0
+        agg_key = (part_num, lot_num, exp_date) 
+
+        if agg_key not in job_data['aggregated_transactions']:
+            job_data['aggregated_transactions'][agg_key] = {
+                'part_number': part_num,
+                'part_description': part_desc,
+                'lot_number': lot_num,
+                'exp_date': exp_date,
+                'Starting Lot Qty': 0.0,
+                'Ending Inventory': 0.0,
+                'Packaged Qty': 0.0,
+                'Yield Cost/Scrap': 0.0,
+                'Yield Loss': 0.0
             }
-        # Update description if it was missing initially
-        if not job_data['aggregated_transactions'][part_num].get('part_description') and part_desc:
-             job_data['aggregated_transactions'][part_num]['part_description'] = part_desc
+        if not job_data['aggregated_transactions'][agg_key].get('part_description') and part_desc:
+             job_data['aggregated_transactions'][agg_key]['part_description'] = part_desc
 
         if action == 'Issued inventory':
-            job_data['aggregated_transactions'][part_num]['Issued inventory'] += quantity
+            job_data['aggregated_transactions'][agg_key]['Starting Lot Qty'] += quantity
         elif action == 'De-issue':
-            job_data['aggregated_transactions'][part_num]['De-issue'] += quantity
-        # Ignore 'Finish Job' here as it's handled separately
+            job_data['aggregated_transactions'][agg_key]['Ending Inventory'] += quantity
 
-    # --- Process Relieve Job (dtfifo2) based on Finish Job Timestamps ---
-    relieve_pointer = 0 # Index for the next relieve transaction to check
-    processed_relieve_ids = set() # Store unique IDs (e.g., f2_id) of processed relieve entries
-
-    # Important: Ensure relieve_details are properly sorted by timestamp ASC
-    # The query already does this with ORDER BY f2_recdate ASC
+    relieve_pointer = 0 
+    processed_relieve_ids = set() 
 
     for fj_entry in finish_job_entries:
         fj_timestamp = fj_entry['timestamp']
 
-        # Iterate through relieve transactions starting from the last pointer
         for i in range(relieve_pointer, len(relieve_details)):
             relieve_row = relieve_details[i]
             relieve_timestamp = relieve_row.get('f2_recdate')
-            # *** Use a unique ID from dtfifo2, assuming 'f2_id' ***
-            # *** If your table uses a different ID, change 'f2_id' below ***
             relieve_id = relieve_row.get('f2_id')
 
-            if relieve_id is None: # Skip if no unique ID found
+            if relieve_id is None: 
                 print(f"Warning: Relieve transaction missing unique ID: {relieve_row}")
                 continue
 
-            # Check if relieve timestamp is valid and occurred at or before the Finish Job
             if relieve_timestamp and relieve_timestamp <= fj_timestamp:
-                # Check if this specific relieve transaction has already been counted
                 if relieve_id not in processed_relieve_ids:
                     part_num = relieve_row.get('part_number', '')
                     part_desc = relieve_row.get('part_description', '')
                     quantity = safe_float(relieve_row.get('net_quantity'))
+                    
+                    linked_fi_id = relieve_row.get('f2_fiid')
+                    details = fi_id_to_details_map.get(linked_fi_id, {'lot_number': '', 'exp_date': 'N/A'})
+                    lot_num = details['lot_number']
+                    exp_date = details['exp_date']
 
-                    if not part_num: continue # Skip if no part number
+                    if not part_num: continue 
+                    
+                    agg_key = (part_num, lot_num, exp_date)
 
-                    # Initialize component if it hasn't been seen before (e.g., only in dtfifo2)
-                    if part_num not in job_data['aggregated_transactions']:
-                        job_data['aggregated_transactions'][part_num] = {
-                            'part_number': part_num, 'part_description': part_desc,
-                            'Issued inventory': 0.0, 'De-issue': 0.0, 'Relieve Job': 0.0,
-                            'Yield Cost/Scrap': 0.0, 'Yield Loss': 0.0
+                    if agg_key not in job_data['aggregated_transactions']:
+                        job_data['aggregated_transactions'][agg_key] = {
+                            'part_number': part_num,
+                            'part_description': part_desc,
+                            'lot_number': lot_num,
+                            'exp_date': exp_date,
+                            'Starting Lot Qty': 0.0,
+                            'Ending Inventory': 0.0,
+                            'Packaged Qty': 0.0,
+                            'Yield Cost/Scrap': 0.0,
+                            'Yield Loss': 0.0
                         }
-                    if not job_data['aggregated_transactions'][part_num].get('part_description') and part_desc:
-                         job_data['aggregated_transactions'][part_num]['part_description'] = part_desc
+                    if not job_data['aggregated_transactions'][agg_key].get('part_description') and part_desc:
+                         job_data['aggregated_transactions'][agg_key]['part_description'] = part_desc
 
-                    # Add the quantity to the calculated 'Relieve Job' total
-                    job_data['aggregated_transactions'][part_num]['Relieve Job'] += quantity
-                    processed_relieve_ids.add(relieve_id) # Mark this specific transaction as processed
+                    job_data['aggregated_transactions'][agg_key]['Packaged Qty'] += quantity
+                    processed_relieve_ids.add(relieve_id) 
 
-                # Update the pointer to start next search from the *next* relieve transaction
                 relieve_pointer = i + 1
 
             elif relieve_timestamp and relieve_timestamp > fj_timestamp:
-                # Because relieve transactions are sorted, we can stop searching for this Finish Job
-                # The relieve_pointer remains where it is for the next Finish Job check
                 break
-            # else: relieve_timestamp is None, continue checking next relieve entry
 
-    # --- Calculate Yields using the *calculated* Relieve Job totals ---
-    for part_num, summary in job_data['aggregated_transactions'].items():
-        issued = summary.get('Issued inventory', 0.0)
-        relieve = summary.get('Relieve Job', 0.0) # Use the value calculated above
-        deissue = summary.get('De-issue', 0.0)
+    for agg_key, summary in job_data['aggregated_transactions'].items():
+        issued = summary.get('Starting Lot Qty', 0.0)
+        relieve = summary.get('Packaged Qty', 0.0) 
+        deissue = summary.get('Ending Inventory', 0.0)
         yield_cost = issued - relieve - deissue
         summary['Yield Cost/Scrap'] = yield_cost
         summary['Yield Loss'] = (yield_cost / relieve) * 100.0 if relieve != 0 else 0.0
 
-    # Filter out unwanted parts (Finished Good itself, 0800 items)
     job_data['aggregated_list'] = [
-        summary for part_num, summary in job_data['aggregated_transactions'].items()
-        if not part_num.startswith('0800-') and part_num != job_data['part_number']
+        summary for summary in job_data['aggregated_transactions'].values()
+        if not summary.get('part_number', '').startswith('0800-') 
+           and summary.get('part_number', '') != job_data['part_number']
     ]
-    # Sort the final list alphabetically by part number for display consistency
-    job_data['aggregated_list'].sort(key=lambda x: x.get('part_number', ''))
+    job_data['aggregated_list'].sort(key=lambda x: (
+        x.get('part_number', ''), 
+        x.get('lot_number', ''),
+        x.get('exp_date', '')
+    ))
 
+    grouped_list = OrderedDict()
+    for summary in job_data['aggregated_list']:
+        part_num = summary.get('part_number', '')
+        if part_num not in grouped_list:
+            grouped_list[part_num] = {
+                'part_description': summary.get('part_description', ''),
+                'lots': []
+            }
+        grouped_list[part_num]['lots'].append(summary)
+    
+    job_data['grouped_list'] = grouped_list
 
     return job_data
-# ***** END MODIFIED HELPER FUNCTION *****
+# ***** END HELPER FUNCTION *****
 
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
 
 @reports_bp.route('/')
-@validate_session
+# ... (hub route is unchanged) ...
 def hub():
     if not require_login(session):
         return redirect(url_for('main.login'))
@@ -178,7 +217,7 @@ def hub():
     return render_template('reports/hub.html', user=session['user'])
 
 @reports_bp.route('/downtime-summary')
-@validate_session
+# ... (downtime_summary route is unchanged) ...
 def downtime_summary():
     if not require_login(session):
         return redirect(url_for('main.login'))
@@ -210,7 +249,7 @@ def downtime_summary():
     )
 
 @reports_bp.route('/shipment-forecast')
-@validate_session
+# ... (shipment_forecast route is unchanged) ...
 def shipment_forecast():
     if not require_login(session) or not require_admin(session):
         flash('Admin privileges are required to view reports.', 'error')
@@ -235,7 +274,7 @@ def coc_report():
 
     if job_number_param:
         try:
-            job_details = _get_single_job_details(job_number_param) # Use the updated helper
+            job_details = _get_single_job_details(job_number_param)
             if job_details and 'error' in job_details:
                 error_message = job_details['error']
                 job_details = None
@@ -252,3 +291,44 @@ def coc_report():
         job_details=job_details,
         error_message=error_message
     )
+
+# <<< MODIFICATION: Added new route for PDF export
+@reports_bp.route('/coc/pdf', methods=['GET'])
+@validate_session
+def coc_report_pdf():
+    """
+    Generates and serves a PDF version of the CoC report.
+    """
+    if not require_admin(session):
+        flash('Admin privileges are required to export reports.', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    job_number_param = request.args.get('job_number', '').strip()
+    if not job_number_param:
+        flash('A Job Number is required to generate a PDF.', 'error')
+        return redirect(url_for('reports.coc_report'))
+
+    try:
+        # Get the same data as the web page
+        job_details = _get_single_job_details(job_number_param)
+        
+        if not job_details or 'error' in job_details:
+            error_message = job_details.get('error', 'Job not found')
+            flash(f'Could not generate PDF: {error_message}', 'error')
+            return redirect(url_for('reports.coc_report', job_number=job_number_param))
+        
+        # Generate the PDF
+        pdf_buffer, filename = generate_coc_pdf(job_details)
+        
+        # Send the PDF as a file download
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+
+    except Exception as e:
+        flash(f'An error occurred while generating the PDF: {e}', 'error')
+        traceback.print_exc()
+        return redirect(url_for('reports.coc_report', job_number=job_number_param))
