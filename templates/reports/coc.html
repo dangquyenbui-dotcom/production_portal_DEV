@@ -32,31 +32,41 @@
         margin-bottom: 0;
     }
 
+    /* <<< MODIFICATION: Added .btn-secondary style */
+    .btn-secondary {
+        background-color: var(--bg-hover);
+        color: var(--text-primary);
+        border: 1px solid var(--border-primary);
+    }
+    .btn-secondary:hover {
+        background-color: var(--border-primary);
+    }
+    /* <<< END MODIFICATION */
+
     /* Container for the job details, mimicking accordion structure appearance */
     .job-details-container {
         margin-top: 20px;
         border: 1px solid var(--border-primary);
-        border-radius: 10px; /* Apply border radius to the container */
+        border-radius: 10px; 
         box-shadow: var(--shadow-sm);
-        overflow: hidden; /* Important for containing rounded corners */
+        overflow: hidden; 
     }
 
     /* Mimic job-header-static from jobs.html for the top info */
     .job-header-info {
         display: grid;
-        /* Match grid columns from jobs.html header, adjust if needed */
-        grid-template-columns: 1fr 1fr 1.5fr 0.8fr 0.8fr 1fr;
+        grid-template-columns: 1fr 1fr 1.5fr 1.5fr 0.8fr 0.8fr 1fr;
         gap: 15px;
-        padding: 10px 20px; /* Reduced padding to match header */
-        background: var(--table-header-bg); /* Use table header background */
-        border-bottom: 2px solid var(--border-primary); /* Match header bottom border */
+        padding: 10px 20px; 
+        background: var(--table-header-bg); 
+        border-bottom: 2px solid var(--border-primary); 
     }
 
     .info-item .info-label {
-        font-size: 12px; /* Match header label font size */
-        color: var(--text-secondary); /* Match header label color */
-        font-weight: 600; /* Match header label weight */
-        text-transform: uppercase; /* Match header label case */
+        font-size: 12px; 
+        color: var(--text-secondary); 
+        font-weight: 600; 
+        text-transform: uppercase; 
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -65,8 +75,8 @@
     }
      .info-item .info-value {
         color: var(--text-primary);
-        font-weight: 600; /* Use stronger weight like in job list */
-        font-size: 14px; /* Match job list font size */
+        font-weight: 600; 
+        font-size: 14px; 
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -78,40 +88,54 @@
 
     /* Styling for the details section mimicking transaction-details */
     .component-details-section {
-        /* display: none; */ /* Remove this if always shown */
-        padding: 20px 30px; /* Match padding from jobs.html */
-        background-color: var(--bg-secondary); /* Match background */
-        /* border-top: 1px solid var(--border-primary); */ /* No top border needed if header has bottom */
+        padding: 20px 30px; 
+        background-color: var(--bg-secondary); 
     }
 
     /* Table styling - Inherit from admin.css but adjust specifics */
-    .component-table { /* Rename class for clarity */
+    .component-table { 
         width: 100%;
         border-collapse: collapse;
     }
      .component-table th, .component-table td {
-        padding: 10px 15px; /* Match padding from jobs.html details */
-        font-size: 13px; /* Match font size */
+        padding: 10px 15px; 
+        font-size: 13px; 
         text-align: left;
         border-bottom: 1px solid var(--border-primary);
+        white-space: nowrap; 
     }
      .component-table tr:last-child td {
-        border-bottom: none; /* Match jobs.html */
+        border-bottom: none; 
     }
     .component-table thead {
-        background-color: var(--bg-hover); /* Match jobs.html details header */
+        background-color: var(--bg-hover); 
     }
     .component-table th {
         font-weight: 600;
         color: var(--text-secondary);
-        white-space: nowrap; /* Prevent header wrapping */
+        white-space: nowrap; 
     }
-    .component-table .numeric { /* Ensure numeric alignment */
+    .component-table .numeric { 
         text-align: right;
     }
     .component-table td {
-         color: var(--text-primary); /* Ensure text color matches */
-         white-space: normal; /* Allow wrapping in data cells */
+         color: var(--text-primary); 
+    }
+    .component-table td.description-cell {
+        white-space: normal;
+    }
+
+
+    /* Styles for grouped rows */
+    .component-table tr.is-first-in-group td {
+        border-top: 2px solid var(--border-primary);
+    }
+    .component-table thead + tbody tr:first-child.is-first-in-group td {
+        border-top: none;
+    }
+    .component-table td[rowspan] {
+        vertical-align: top;
+        font-weight: 600;
     }
 
 
@@ -152,7 +176,13 @@
                    placeholder="Enter Job Number (e.g., 202504992)" value="{{ job_number or '' }}" required>
         </div>
         <button type="submit" class="btn btn-primary">View Job Details</button>
-    </form>
+        
+        <button type="submit" class="btn btn-secondary" 
+                formaction="{{ url_for('reports.coc_report_pdf') }}" 
+                formmethod="GET">
+            Export to PDF
+        </button>
+        </form>
 </div>
 
 {% if job_details %}
@@ -167,6 +197,12 @@
             <span class="info-label">Part Number</span>
             <span class="info-value">{{ job_details.part_number }}</span>
         </div>
+        
+        <div class="info-item">
+            <span class="info-label">Part Description</span>
+            <span class="info-value">{{ job_details.part_description or 'N/A' }}</span>
+        </div>
+        
         <div class="info-item">
             <span class="info-label">Customer</span>
             <span class="info-value">{{ job_details.customer_name }}</span>
@@ -185,36 +221,54 @@
         </div>
     </div>
 
-    {# Mimic structure of .transaction-details #}
+    {# Mimc structure of .transaction-details #}
     <div class="component-details-section">
-        <table class="component-table"> {# Use specific class #}
+        <table class="component-table">
             <thead>
                 <tr>
                     <th>Part</th>
                     <th>Part Description</th>
-                    <th class="numeric">Issued Inventory</th>
-                    <th class="numeric">De-issue</th>
-                    <th class="numeric">Relieve Job</th>
+                    <th>Lot #</th>
+                    <th>Exp Date</th>
+                    <th class="numeric">Starting Lot Qty</th>
+                    <th class="numeric">Ending Inventory</th>
+                    <th class="numeric">Packaged Qty</th>
                     <th class="numeric">Yield Cost/Scrap</th>
                     <th class="numeric">Yield Loss</th>
                 </tr>
             </thead>
             <tbody>
-                {% if job_details.aggregated_list %}
-                    {% for part_summary in job_details.aggregated_list %}
-                    <tr>
-                        <td>{{ part_summary.part_number }}</td>
-                        <td>{{ part_summary.part_description }}</td>
-                        <td class="numeric">{{ "{:,.2f}".format(part_summary['Issued inventory']) }}</td>
-                        <td class="numeric">{{ "{:,.2f}".format(part_summary['De-issue']) }}</td>
-                        <td class="numeric">{{ "{:,.2f}".format(part_summary['Relieve Job']) }}</td>
-                        <td class="numeric">{{ "{:,.2f}".format(part_summary['Yield Cost/Scrap']) }}</td>
-                        <td class="numeric">{{ "%.2f"|format(part_summary['Yield Loss']) }}%</td>
-                    </tr>
+                {% if job_details.grouped_list %}
+                    {% for part_num, group in job_details.grouped_list.items() %}
+                        {% if not group.lots %}
+                            <tr class="is-first-in-group">
+                                <td>{{ part_num }}</td>
+                                <td class="description-cell">{{ group.part_description }}</td>
+                                <td colspan="7" style="text-align: center; color: var(--text-tertiary);">No lot transactions found.</td>
+                            </tr>
+                        {% else %}
+                            {% for lot_summary in group.lots %}
+                            <tr class="lot-row {% if loop.first %}is-first-in-group{% endif %}">
+                                
+                                {% if loop.first %}
+                                <td rowspan="{{ group.lots|length }}">{{ part_num }}</td>
+                                <td rowspan="{{ group.lots|length }}" class="description-cell">{{ group.part_description }}</td>
+                                {% endif %}
+                                
+                                <td>{{ lot_summary.lot_number or 'N/A' }}</td>
+                                <td>{{ lot_summary.exp_date }}</td>
+                                <td class="numeric">{{ "{:,.2f}".format(lot_summary['Starting Lot Qty']) }}</td>
+                                <td class="numeric">{{ "{:,.2f}".format(lot_summary['Ending Inventory']) }}</td>
+                                <td class="numeric">{{ "{:,.2f}".format(lot_summary['Packaged Qty']) }}</td>
+                                <td class="numeric">{{ "{:,.2f}".format(lot_summary['Yield Cost/Scrap']) }}</td>
+                                <td class="numeric">{{ "%.2f"|format(lot_summary['Yield Loss']) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
                     {% endfor %}
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--text-tertiary);">No component transactions found for this job.</td>
+                    <td colspan="9" style="text-align: center; color: var(--text-tertiary);">No component transactions found for this job.</td>
                 </tr>
                 {% endif %}
             </tbody>
@@ -226,7 +280,7 @@
         Error: {{ error_message }}
     </div>
 {% elif job_number %}
-     <div class="error-message">
+     <div class-"error-message">
         No details found for job {{ job_number }}. It might be closed or invalid.
     </div>
 {% else %}
