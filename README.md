@@ -1,12 +1,15 @@
+Okay, here is the updated full content for your `README.md` file, incorporating the recent changes including the Certificate of Compliance report and its specific query logic.
+
+````markdown
 # Production Portal: Downtime Tracker & MRP Scheduler
 
 ## Overview
 
-A robust, enterprise-ready web application designed for manufacturing and co-packaging environments. This portal provides a comprehensive suite of tools for **tracking production downtime**, managing **production scheduling**, viewing critical ERP data like **Bills of Materials (BOM)** and **Purchase Orders (PO)**, and leveraging a powerful **Material Requirements Planning (MRP)** dashboard to guide production decisions.
+A robust, enterprise-ready web application designed for manufacturing and co-packaging environments. This portal provides a comprehensive suite of tools for **tracking production downtime**, managing **production scheduling**, viewing critical ERP data like **Bills of Materials (BOM)** and **Purchase Orders (PO)**, generating reports like the **Certificate of Compliance (CoC)**, and leveraging a powerful **Material Requirements Planning (MRP)** dashboard to guide production decisions.
 
 The system's hybrid data architecture connects to a **read-only ERP database** for live production and material data while storing all user-generated data—such as downtime events, scheduling projections, and production capacity—in a separate, fully-controlled local SQL Server database (`ProductionDB`).
 
-**Current Version:** 2.6.0 (MRP Dashboard Complete with advanced logic)
+**Current Version:** 2.6.1 (Added CoC Report)
 **Status:** **All core modules are complete and operational.**
 
 -----
@@ -130,9 +133,21 @@ An Excel-like grid that displays all open sales orders from the ERP, allowing pl
 
 A tablet-optimized interface for quick and easy downtime entry on the factory floor, featuring ERP job integration and a real-time list of the day's entries.
 
+### ✅ Live Open Jobs Viewer
+
+A real-time, filterable, and sortable view of all currently open production jobs, showing header information and detailed component transaction summaries (Issued, De-issued, Relieve Job, Yield Cost/Scrap, Yield Loss). Includes automatic refresh capabilities.
+
 ### ✅ BOM & PO Viewers
 
 Dedicated, read-only interfaces for viewing and searching **Bills of Materials** and open **Purchase Orders** directly from the ERP, complete with client-side searching and Excel export functionality.
+
+### ✅ Reporting Suite
+
+A collection of analytical reports accessible via a central hub.
+
+  * **Downtime Summary:** Analyze downtime duration by category and production line within a specified date range, with filtering options. Includes charts and raw data export.
+  * **Shipment Forecast:** Automated monthly forecast based on MRP results, categorizing orders as "Likely to Ship" or "At-Risk/Partial".
+  * **Certificate of Compliance (CoC):** Allows users to input *any* job number (open or closed) and view detailed component usage, including Issued Inventory, De-issue, Relieve Job quantities, and calculated Yield Cost/Scrap and Yield Loss percentages, mimicking the detailed view from the Live Open Jobs page.
 
 ### ✅ Admin Panel & System Management
 
@@ -159,35 +174,57 @@ A comprehensive, role-restricted area for managing all aspects of the applicatio
 
 ### Project Structure (Highlights)
 
-```
-/production_portal_dev/
+````
+
+/production\_portal\_dev/
 |
-├── app.py                  # Main application factory
+├── app.py                  \# Main application factory
 |
 ├── /database/
-│   ├── erp_connection.py   # Handles read-only connection to the ERP
-│   ├── mrp_service.py      # Core MRP calculation engine
-│   ├── capacity.py         # Manages ProductionCapacity table
-│   └── ...                 # Other local database modules (downtimes, users, etc.)
+│   ├── connection.py       \# Handles local ProductionDB connection
+│   ├── erp\_connection\_base.py \# Base class for raw ERP DB connection logic
+│   ├── erp\_service.py      \# Service layer coordinating ERP queries
+│   ├── /erp\_queries/       \# Modules containing specific ERP SQL queries
+│   │   ├── job\_queries.py
+│   │   ├── coc\_queries.py  \# \<-- ADDED: Queries specifically for CoC report
+│   │   └── ...             \# Other query modules (bom, inventory, po, qc, sales)
+│   ├── mrp\_service.py      \# Core MRP calculation engine
+│   ├── capacity.py         \# Manages ProductionCapacity table
+│   └── ...                 \# Other local database modules (downtimes, users, etc.)
 |
 ├── /routes/
-│   ├── mrp.py              # Routes for the MRP Dashboard page
-│   ├── scheduling.py       # Routes for the Production Scheduling grid
-│   ├── bom.py              # Routes for the BOM Viewer
-│   ├── po.py               # Routes for the PO Viewer
+│   ├── main.py
+│   ├── mrp.py              \# Routes for the MRP Dashboard page
+│   ├── scheduling.py       \# Routes for the Production Scheduling grid
+│   ├── bom.py              \# Routes for the BOM Viewer
+│   ├── po.py               \# Routes for the PO Viewer
+│   ├── reports.py          \# Routes for Downtime Summary, Forecast, CoC reports
+│   ├── jobs.py             \# Routes for Live Open Jobs viewer
 │   └── /admin/
-│       └── ...             # All administrative routes
+│       └── ...             \# All administrative routes
 |
 ├── /static/
 │   ├── /css/
 │   └── /js/
-│       ├── mrp.js          # JavaScript for the MRP Dashboard
-│       └── scheduling.js   # JavaScript for the Scheduling page
+│       ├── mrp.js          \# JavaScript for the MRP Dashboard
+│       ├── scheduling.js   \# JavaScript for the Scheduling page
+│       └── jobs.js         \# JavaScript for the Open Jobs page
 |
 ├── /templates/
-│   ├── dashboard.html
-│   └── /mrp/
-│       └── index.html      # Main MRP Dashboard page template
+│   ├── dashboard.html  
+│   ├── /mrp/
+│   │   └── index.html      \# Main MRP Dashboard page template
+│   ├── /reports/
+│   │   ├── hub.html
+│   │   ├── downtime\_summary.html
+│   │   └── coc.html        \# \<-- ADDED: Template for CoC report
+│   ├── /jobs/
+│   │   └── index.html      \# Template for Open Jobs viewer
+│   └── ...
 |
+├── .env                    \# Environment variables (Create this file)
+├── requirements.txt
 └── ...
+
+```
 ```

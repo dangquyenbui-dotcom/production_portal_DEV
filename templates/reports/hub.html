@@ -20,12 +20,20 @@
         <div class="admin-title">Downtime Summary</div>
         <div class="admin-desc">Analyze downtime duration by category and production line.</div>
     </a>
-    
+
     <a href="{{ url_for('reports.shipment_forecast') }}" class="admin-card">
         <div class="admin-icon">🔮</div>
         <div class="admin-title">Shipment Forecast</div>
         <div class="admin-desc">Automated monthly shipment forecast based on MRP data.</div>
     </a>
+
+    {# --- ADD THIS NEW CARD --- #}
+    <a href="{{ url_for('reports.coc_report') }}" class="admin-card">
+        <div class="admin-icon">📜</div>
+        <div class="admin-title">Certificate of Compliance</div>
+        <div class="admin-desc">View component usage and yield for a specific job.</div>
+    </a>
+    {# --- END NEW CARD --- #}
 
     <a href="#" class="admin-card disabled">
         <div class="admin-icon">🏭</div>

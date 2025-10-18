@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate of Compliance Report{% endblock %}
+
+{% block navbar_title %}📜 Certificate of Compliance{% endblock %}
+
+{% block nav_links %}
+<a href="{{ url_for('reports.hub') }}">All Reports</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/logout">Logout</a>
+{% endblock %}
+
+{% block styles %}
+{# Include admin.css for base table styles and other utilities #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<style>
+    .job-input-card {
+        background: var(--bg-secondary);
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-primary);
+    }
+    .job-input-form {
+        display: flex;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .job-input-form .form-group {
+        flex-grow: 1;
+        margin-bottom: 0;
+    }
+
+    /* Container for the job details, mimicking accordion structure appearance */
+    .job-details-container {
+        margin-top: 20px;
+        border: 1px solid var(--border-primary);
+        border-radius: 10px; /* Apply border radius to the container */
+        box-shadow: var(--shadow-sm);
+        overflow: hidden; /* Important for containing rounded corners */
+    }
+
+    /* Mimic job-header-static from jobs.html for the top info */
+    .job-header-info {
+        display: grid;
+        /* Match grid columns from jobs.html header, adjust if needed */
+        grid-template-columns: 1fr 1fr 1.5fr 0.8fr 0.8fr 1fr;
+        gap: 15px;
+        padding: 10px 20px; /* Reduced padding to match header */
+        background: var(--table-header-bg); /* Use table header background */
+        border-bottom: 2px solid var(--border-primary); /* Match header bottom border */
+    }
+
+    .info-item .info-label {
+        font-size: 12px; /* Match header label font size */
+        color: var(--text-secondary); /* Match header label color */
+        font-weight: 600; /* Match header label weight */
+        text-transform: uppercase; /* Match header label case */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        margin-bottom: 4px;
+    }
+     .info-item .info-value {
+        color: var(--text-primary);
+        font-weight: 600; /* Use stronger weight like in job list */
+        font-size: 14px; /* Match job list font size */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+     .info-item .info-value.numeric {
+        text-align: right;
+     }
+
+
+    /* Styling for the details section mimicking transaction-details */
+    .component-details-section {
+        /* display: none; */ /* Remove this if always shown */
+        padding: 20px 30px; /* Match padding from jobs.html */
+        background-color: var(--bg-secondary); /* Match background */
+        /* border-top: 1px solid var(--border-primary); */ /* No top border needed if header has bottom */
+    }
+
+    /* Table styling - Inherit from admin.css but adjust specifics */
+    .component-table { /* Rename class for clarity */
+        width: 100%;
+        border-collapse: collapse;
+    }
+     .component-table th, .component-table td {
+        padding: 10px 15px; /* Match padding from jobs.html details */
+        font-size: 13px; /* Match font size */
+        text-align: left;
+        border-bottom: 1px solid var(--border-primary);
+    }
+     .component-table tr:last-child td {
+        border-bottom: none; /* Match jobs.html */
+    }
+    .component-table thead {
+        background-color: var(--bg-hover); /* Match jobs.html details header */
+    }
+    .component-table th {
+        font-weight: 600;
+        color: var(--text-secondary);
+        white-space: nowrap; /* Prevent header wrapping */
+    }
+    .component-table .numeric { /* Ensure numeric alignment */
+        text-align: right;
+    }
+    .component-table td {
+         color: var(--text-primary); /* Ensure text color matches */
+         white-space: normal; /* Allow wrapping in data cells */
+    }
+
+
+    .error-message {
+        color: var(--accent-red);
+        font-weight: bold;
+        padding: 20px;
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        margin-top: 20px;
+        text-align: center;
+    }
+    .prompt-message {
+        color: var(--text-secondary);
+        padding: 40px 20px;
+        text-align: center;
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        margin-top: 20px;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-card">
+    <h1>Certificate of Compliance Report</h1>
+    <p>View component usage details for a specific production job.</p>
+</div>
+
+<div id="alerts"></div>
+
+<div class="job-input-card">
+    <form method="GET" action="{{ url_for('reports.coc_report') }}" class="job-input-form">
+        <div class="form-group">
+            <label for="jobNumberInput">Job Number</label>
+            <input type="text" id="jobNumberInput" name="job_number" class="form-control"
+                   placeholder="Enter Job Number (e.g., 202504992)" value="{{ job_number or '' }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary">View Job Details</button>
+    </form>
+</div>
+
+{% if job_details %}
+<div class="job-details-container">
+    {# Mimic structure of .job-header-static #}
+    <div class="job-header-info">
+        <div class="info-item">
+            <span class="info-label">Job Number</span>
+            <span class="info-value">{{ job_details.job_number }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Part Number</span>
+            <span class="info-value">{{ job_details.part_number }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Customer</span>
+            <span class="info-value">{{ job_details.customer_name }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Sales Order</span>
+            <span class="info-value">{{ job_details.sales_order or 'N/A' }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Required Qty</span>
+            <span class="info-value numeric">{{ "{:,.2f}".format(job_details.required_qty) }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Completed Qty</span>
+            <span class="info-value numeric">{{ "{:,.2f}".format(job_details.completed_qty) }}</span>
+        </div>
+    </div>
+
+    {# Mimic structure of .transaction-details #}
+    <div class="component-details-section">
+        <table class="component-table"> {# Use specific class #}
+            <thead>
+                <tr>
+                    <th>Part</th>
+                    <th>Part Description</th>
+                    <th class="numeric">Issued Inventory</th>
+                    <th class="numeric">De-issue</th>
+                    <th class="numeric">Relieve Job</th>
+                    <th class="numeric">Yield Cost/Scrap</th>
+                    <th class="numeric">Yield Loss</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if job_details.aggregated_list %}
+                    {% for part_summary in job_details.aggregated_list %}
+                    <tr>
+                        <td>{{ part_summary.part_number }}</td>
+                        <td>{{ part_summary.part_description }}</td>
+                        <td class="numeric">{{ "{:,.2f}".format(part_summary['Issued inventory']) }}</td>
+                        <td class="numeric">{{ "{:,.2f}".format(part_summary['De-issue']) }}</td>
+                        <td class="numeric">{{ "{:,.2f}".format(part_summary['Relieve Job']) }}</td>
+                        <td class="numeric">{{ "{:,.2f}".format(part_summary['Yield Cost/Scrap']) }}</td>
+                        <td class="numeric">{{ "%.2f"|format(part_summary['Yield Loss']) }}%</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-tertiary);">No component transactions found for this job.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif error_message %}
+    <div class="error-message">
+        Error: {{ error_message }}
+    </div>
+{% elif job_number %}
+     <div class="error-message">
+        No details found for job {{ job_number }}. It might be closed or invalid.
+    </div>
+{% else %}
+    <div class="prompt-message">
+        Please enter a job number above to view its Certificate of Compliance details.
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{# No specific JS needed for this simple report page yet #}
+{% endblock %}
